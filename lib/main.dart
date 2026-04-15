@@ -2,22 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'theme_provider.dart';
-import 'providers/favorites_provider.dart';
-import 'screens/explore_screen.dart';
-import 'screens/saved_screen.dart';
-import 'screens/user_profile_screen.dart';
-import 'providers/user_preferences_provider.dart';
-import 'providers/booking_provider.dart';
-import 'providers/chat_provider.dart';
-import 'services/audio_manager.dart';
-import 'screens/splash_screen.dart';
-import 'screens/property_hub_screen.dart';
-import 'providers/property_provider.dart';
-import 'providers/negotiation_provider.dart';
-import 'providers/verification_provider.dart';
-import 'providers/savings_provider.dart';
-import 'screens/savings_screen.dart';
+import 'package:swiftspace/core/constants/app_constants.dart';
+import 'core/theme/theme_provider.dart';
+import 'features/explore/presentation/state/favorites_provider.dart';
+import 'features/explore/presentation/pages/explore_screen.dart';
+import 'features/explore/presentation/pages/saved_screen.dart';
+import 'features/auth/presentation/pages/user_profile_screen.dart';
+import 'features/auth/presentation/state/user_preferences_provider.dart';
+import 'features/booking/presentation/state/booking_provider.dart';
+import 'features/chat/presentation/state/chat_provider.dart';
+import 'core/services/audio_manager.dart';
+import 'features/auth/presentation/pages/splash_screen.dart';
+import 'features/booking/presentation/pages/property_hub_screen.dart';
+import 'features/property/presentation/state/property_provider.dart';
+import 'features/negotiation/presentation/state/negotiation_provider.dart';
+import 'features/auth/presentation/state/verification_provider.dart';
+import 'features/savings/presentation/state/savings_provider.dart';
+import 'features/savings/presentation/pages/savings_screen.dart';
+import 'core/utils/responsive.dart';
+
 
 import 'dart:ui';
 
@@ -79,29 +82,29 @@ class SwiftSpaceApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'Swift Space',
+      title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.themeMode,
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        scaffoldBackgroundColor: AppColors.backgroundLight,
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF0F5A3F), // Dark green primary
-          secondary: Color(0xFF168153),
-          surface: Colors.white,
-          onSurface: Color(0xFF1E1E1E),
+          primary: AppColors.primaryLight,
+          secondary: AppColors.secondary,
+          surface: AppColors.surfaceLight,
+          onSurface: AppColors.textPrimaryLight,
         ),
         textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212),
+        scaffoldBackgroundColor: AppColors.backgroundDark,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF1EB476), // Lighter green for dark mode accessibility
-          secondary: Color(0xFF168153),
-          surface: Color(0xFF1E1E1E),
-          onSurface: Colors.white,
+          primary: AppColors.primaryDark,
+          secondary: AppColors.secondary,
+          surface: AppColors.surfaceDark,
+          onSurface: AppColors.textPrimaryDark,
         ),
         textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         useMaterial3: true,
@@ -131,44 +134,93 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final prefs = Provider.of<UserPreferencesProvider>(context);
+    final isMobile = Responsive.isMobile(context);
     
     return Scaffold(
-      body: IndexedStack(
-        index: prefs.currentTabIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: prefs.currentTabIndex,
-        onTap: (index) => prefs.setTabIndex(index),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: colorScheme.surface,
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(LucideIcons.compass),
-            label: 'EXPLORE',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(LucideIcons.heart),
-            label: 'FAVORITE',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(LucideIcons.layoutDashboard),
-            label: 'HUB',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(LucideIcons.landmark),
-            label: 'VAULT',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(LucideIcons.user),
-            label: 'PROFILE',
+      body: Row(
+        children: [
+          if (!isMobile)
+            NavigationRail(
+              selectedIndex: prefs.currentTabIndex,
+              onDestinationSelected: (index) => prefs.setTabIndex(index),
+              labelType: NavigationRailLabelType.all,
+              backgroundColor: colorScheme.surface,
+              selectedIconTheme: IconThemeData(color: colorScheme.primary),
+              unselectedIconTheme: IconThemeData(color: colorScheme.onSurface.withValues(alpha: 0.5)),
+              selectedLabelTextStyle: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+              ),
+              unselectedLabelTextStyle: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+                fontSize: 10,
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(LucideIcons.compass),
+                  label: Text(AppStrings.navExplore),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(LucideIcons.heart),
+                  label: Text(AppStrings.navFavorite),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(LucideIcons.layoutDashboard),
+                  label: Text(AppStrings.navHub),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(LucideIcons.landmark),
+                  label: Text(AppStrings.navVault),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(LucideIcons.user),
+                  label: Text(AppStrings.navProfile),
+                ),
+              ],
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: prefs.currentTabIndex,
+              children: _screens,
+            ),
           ),
         ],
       ),
+      bottomNavigationBar: isMobile 
+        ? BottomNavigationBar(
+            currentIndex: prefs.currentTabIndex,
+            onTap: (index) => prefs.setTabIndex(index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: colorScheme.surface,
+            selectedItemColor: colorScheme.primary,
+            unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10),
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.compass),
+                label: AppStrings.navExplore,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.heart),
+                label: AppStrings.navFavorite,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.layoutDashboard),
+                label: AppStrings.navHub,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.landmark),
+                label: AppStrings.navVault,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(LucideIcons.user),
+                label: AppStrings.navProfile,
+              ),
+            ],
+          )
+        : null,
     );
   }
 }
