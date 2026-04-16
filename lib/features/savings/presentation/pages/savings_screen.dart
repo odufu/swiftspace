@@ -2,10 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/savings/presentation/state/savings_provider.dart';
 import 'package:swiftspace/features/savings/domain/entities/savings_plan.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
+import 'package:swiftspace/core/utils/responsive.dart';
 
 class VaultScreen extends StatefulWidget {
   const VaultScreen({super.key});
@@ -16,7 +18,7 @@ class VaultScreen extends StatefulWidget {
 
 class _VaultScreenState extends State<VaultScreen> {
   void _startNewPlan() {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => const _CreatePlanWizard()));
   }
 
@@ -29,6 +31,8 @@ class _VaultScreenState extends State<VaultScreen> {
     if (plan == null) {
       return _buildEmptyState(theme);
     }
+
+    final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -43,26 +47,75 @@ class _VaultScreenState extends State<VaultScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBalanceCard(plan, theme),
-            const SizedBox(height: 24),
-            _buildCountdownBanner(plan, savingsProvider.simulatedTime, theme),
-            const SizedBox(height: 32),
-            _buildGamifiedHeatmap(plan, theme),
-            const SizedBox(height: 32),
-            _buildBankPartnerInfo(plan, theme),
-            const SizedBox(height: 48),
-          ],
-        ),
+        padding: EdgeInsets.all(isMobile ? 20 : 40),
+        child: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildBalanceCard(plan, theme),
+                  const SizedBox(height: 24),
+                  _buildCountdownBanner(plan, theme),
+                  const SizedBox(height: 32),
+                  _buildGamifiedHeatmap(plan, theme),
+                  const SizedBox(height: 32),
+                  _buildBankPartnerInfo(plan, theme),
+                  const SizedBox(height: 48),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBalanceCard(plan, theme),
+                        const SizedBox(height: 32),
+                        _buildGamifiedHeatmap(plan, theme),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 40),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildCountdownBanner(plan, theme),
+                        const SizedBox(height: 24),
+                        _buildBankPartnerInfo(plan, theme),
+                        const SizedBox(height: 32),
+                        // Desktop Quick Actions
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 16),
+                              _buildActionItem(theme, LucideIcons.arrowDownToLine, 'Download Statement'),
+                              _buildActionItem(theme, LucideIcons.share2, 'Share Progress'),
+                              _buildActionItem(theme, LucideIcons.helpCircle, 'Contact Support'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
+          // Debounce check - primarily handled in provider now
           savingsProvider.simulateFastForward();
-          AudioManager().playSuccess(context);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Simulated early top-up success!')));
+          sl<AudioManager>().playSuccess(context);
         },
         icon: const Icon(LucideIcons.zap),
         label: const Text('Top-Up Now'),
@@ -217,55 +270,8 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  Widget _buildCountdownBanner(SavingsPlan plan, DateTime now, ThemeData theme) {
-    final nextDate = plan.nextPaymentDate;
-    final diff = nextDate.difference(now);
-    
-    String countdownStr;
-    if (diff.isNegative) {
-      countdownStr = 'Processing next cycle...';
-    } else {
-      final d = diff.inDays;
-      final h = (diff.inHours % 24).toString().padLeft(2, '0');
-      final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
-      final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
-      countdownStr = d > 0 ? '$d days $h:$m:$s' : '$h:$m:$s';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(LucideIcons.clock, color: Colors.orange),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Next Auto-Debit • ₦${plan.amountPerCycle.toStringAsFixed(0)}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                const SizedBox(height: 4),
-                Text(countdownStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _buildCountdownBanner(SavingsPlan plan, ThemeData theme) {
+    return _VaultTimer(plan: plan);
   }
 
   Widget _buildGamifiedHeatmap(SavingsPlan plan, ThemeData theme) {
@@ -295,24 +301,44 @@ class _VaultScreenState extends State<VaultScreen> {
                   final isDone = index < completedBlocks;
                   final isNext = index == completedBlocks;
                   
+                  // Optimize: only use AnimatedContainer for the active/next block
+                  // Use simple Container for processed ones to reduce UI thread load
+                  if (!isDone && !isNext) {
+                    return Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }
+
+                  if (isDone) {
+                    return Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)
+                        ],
+                      ),
+                      child: const Icon(Icons.check, size: 14, color: Colors.white),
+                    );
+                  }
+                  
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 500),
                     curve: Curves.easeInOutBack,
-                    width: isDone ? 22 : 18,
-                    height: isDone ? 22 : 18,
+                    width: 18,
+                    height: 18,
                     decoration: BoxDecoration(
-                      color: isDone 
-                          ? theme.colorScheme.primary 
-                          : isNext 
-                              ? Colors.orange.withValues(alpha: 0.2)
-                              : Colors.grey.withValues(alpha: 0.1),
+                      color: Colors.orange.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
-                      boxShadow: isDone ? [
-                        BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)
-                      ] : null,
                     ),
-                    child: isDone ? const Icon(Icons.check, size: 14, color: Colors.white) : 
-                           isNext ? const Icon(Icons.downloading, size: 12, color: Colors.orange) : null,
+                    child: const Icon(Icons.downloading, size: 12, color: Colors.orange),
                   );
                 }),
               ),
@@ -377,6 +403,35 @@ class _VaultScreenState extends State<VaultScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildActionItem(ThemeData theme, IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 16),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+              const Spacer(),
+              const Icon(LucideIcons.chevronRight, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -599,7 +654,7 @@ class _CreatePlanWizardState extends State<_CreatePlanWizard> {
                     targetAmount: avgPrice,
                     durationMonths: _durationMonths,
                   );
-                  AudioManager().playSuccess(context);
+                  sl<AudioManager>().playSuccess(context);
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
@@ -652,6 +707,91 @@ class _CreatePlanWizardState extends State<_CreatePlanWizard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _VaultTimer extends StatefulWidget {
+  final SavingsPlan plan;
+  const _VaultTimer({required this.plan});
+
+  @override
+  State<_VaultTimer> createState() => _VaultTimerState();
+}
+
+class _VaultTimerState extends State<_VaultTimer> {
+  late Timer _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _now = DateTime.now();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final nextDate = widget.plan.nextPaymentDate;
+    final diff = nextDate.difference(_now);
+    
+    String countdownStr;
+    if (diff.isNegative) {
+      countdownStr = 'Processing next cycle...';
+    } else {
+      final d = diff.inDays;
+      final h = (diff.inHours % 24).toString().padLeft(2, '0');
+      final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
+      final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+      countdownStr = d > 0 ? '$d days $h:$m:$s' : '$h:$m:$s';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.clock, color: Colors.orange),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Next Auto-Debit • ₦${widget.plan.amountPerCycle.toStringAsFixed(0)}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(countdownStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

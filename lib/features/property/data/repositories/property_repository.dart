@@ -1,0 +1,61 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../domain/entities/property.dart';
+import '../mock_properties.dart';
+import '../../../../core/error/app_exception.dart';
+
+class PropertyRepository {
+  final SupabaseClient _client;
+
+  PropertyRepository(this._client);
+
+  Future<List<Property>> getProperties({bool includeTest = true}) async {
+    try {
+      // 1. Fetch live properties from Supabase
+      final List<dynamic> response = await _client
+          .from('properties')
+          .select()
+          .eq('is_active', true);
+
+      final liveProperties = response.map((json) => Property.fromMap(json)).toList();
+
+      // 2. Combine with mock data if requested
+      if (includeTest) {
+        // Mark mock properties as test if not already marked
+        final testProperties = mockProperties.map((p) => p.copyWith(isTest: true)).toList();
+        return [...liveProperties, ...testProperties];
+      }
+
+      return liveProperties;
+    } catch (e) {
+      // If table doesn't exist yet or other DB error, fallback to mock data for now
+      // but log it or handle it gracefully
+      if (e is PostgrestException && e.code == 'PGRST204') {
+        // Table not found - likely not created yet
+        return mockProperties.map((p) => p.copyWith(isTest: true)).toList();
+      }
+      
+      // For other errors, we might want to throw or return mock data as a fallback
+      // Since we are in transition, returning mock data is safer for UX
+      return mockProperties.map((p) => p.copyWith(isTest: true)).toList();
+    }
+  }
+
+  Future<Property> getPropertyById(String id) async {
+    try {
+      // Check mock data first (since IDs are prefixed usually)
+      final mock = mockProperties.firstWhere((p) => p.id == id, orElse: () => throw Exception('Not found in mock'));
+      return mock.copyWith(isTest: true);
+    } catch (_) {
+      try {
+        final response = await _client
+            .from('properties')
+            .select()
+            .eq('id', id)
+            .single();
+        return Property.fromMap(response);
+      } catch (e) {
+        throw AppException.fromSupabase(e);
+      }
+    }
+  }
+}

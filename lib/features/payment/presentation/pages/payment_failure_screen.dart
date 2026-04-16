@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class PaymentFailureScreen extends StatefulWidget {
   final String title;
@@ -35,7 +36,7 @@ class _PaymentFailureScreenState extends State<PaymentFailureScreen> with Single
     _animController.forward();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      AudioManager().triggerHeavyHaptic(context);
+      sl<AudioManager>().triggerHeavyHaptic(context);
       // Play a failure sound if available, otherwise just heavy haptic.
     });
   }
@@ -110,8 +111,8 @@ class _PaymentFailureScreenState extends State<PaymentFailureScreen> with Single
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () {
-                    AudioManager().playClick(context);
-                    AudioManager().triggerHaptic(context);
+                    sl<AudioManager>().playClick(context);
+                    sl<AudioManager>().triggerHaptic(context);
                     Navigator.of(context).pop(false);
                   },
                   style: OutlinedButton.styleFrom(

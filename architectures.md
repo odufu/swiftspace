@@ -39,7 +39,54 @@ feature_name/
 
 ---
 
-## 🛑 3. Strict Architectural Rules
+## 📂 3. Dependency Injection (DI) with GetIt
+
+We use `get_it` as our primary service locator and dependency injection framework. This ensures that services, repositories, and use cases are easily mockable for testing and decoupling.
+
+### I. Registration
+All global dependencies must be registered in `lib/core/di/injection_container.dart` within the `initGlobalDI()` function.
+
+```dart
+final sl = GetIt.instance; // sl stands for Service Locator
+
+void initGlobalDI() {
+  // Services
+  sl.registerLazySingleton<AudioManager>(() => AudioManager());
+  
+  // Data Sources
+  sl.registerLazySingleton<PropertyRemoteDataSource>(() => PropertyRemoteDataSourceImpl());
+  
+  // Repositories
+  sl.registerLazySingleton<PropertyRepository>(() => PropertyRepositoryImpl(sl()));
+}
+```
+
+### II. Registration Hierarchy
+1.  **Services/Infrastructure**: Core utilities (Audio, Cache, Logger).
+2.  **Data Sources**: APIs, Local Storage.
+3.  **Repositories**: Abstractions for data handling.
+4.  **Use Cases**: Pure business logic actions.
+
+### III. Relationship with Provider
+- **GetIt** manages the **Life Cycle** of objects (Singletons, Factories).
+- **Provider** remains as the **UI Binder** and State Manager.
+- Use `sl<Service>()` inside the Provider's constructor to inject dependencies.
+
+```dart
+class PropertyProvider extends ChangeNotifier {
+  final PropertyRepository _repository;
+  
+  // Inject the repository from GetIt
+  PropertyProvider(this._repository);
+  
+  // Factor constructor for easy registration in main.dart
+  factory PropertyProvider.instance() => PropertyProvider(sl<PropertyRepository>());
+}
+```
+
+---
+
+## 🛑 4. Strict Architectural Rules
 
 ### I. Layer Isolation
 - **Domain stays Pure**: The `domain/` layer must NEVER import `package:flutter`. It is pure Dart logic.

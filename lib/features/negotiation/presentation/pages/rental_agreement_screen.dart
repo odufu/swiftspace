@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class RentalAgreementScreen extends StatefulWidget {
   final Property property;
@@ -31,15 +32,15 @@ class _RentalAgreementScreenState extends State<RentalAgreementScreen> {
   ];
 
   void _signAgreement() async {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     setState(() => _isSigned = true);
     
     // Simulate real-time processing/blockchain timestamping
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     
-    AudioManager().playSuccess(context);
-    AudioManager().triggerHeavyHaptic(context);
+    sl<AudioManager>().playSuccess(context);
+    sl<AudioManager>().triggerHeavyHaptic(context);
     setState(() => _showSuccess = true);
   }
 

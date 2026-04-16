@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/ai_camera_mapping_screen.dart';
 import 'package:swiftspace/features/payment/presentation/pages/payment_success_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 
 class PropertyOnboardingScreen extends StatefulWidget {
@@ -43,16 +44,16 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   }
 
   void _nextStep() {
-    AudioManager().playClick(context);
-    AudioManager().triggerHaptic(context);
+    sl<AudioManager>().playClick(context);
+    sl<AudioManager>().triggerHaptic(context);
     if (_currentStep < 4) {
       setState(() {
         _currentStep++;
       });
     } else {
       // Final Submission
-      AudioManager().playSuccess(context);
-      AudioManager().triggerHeavyHaptic(context);
+      sl<AudioManager>().playSuccess(context);
+      sl<AudioManager>().triggerHeavyHaptic(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Property Listed Successfully!')),
       );
@@ -61,7 +62,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   }
 
   void _prevStep() {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
@@ -105,7 +106,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         onStepCancel: _prevStep,
         onStepTapped: (index) {
           setState(() => _currentStep = index);
-          AudioManager().playClick(context);
+          sl<AudioManager>().playClick(context);
         },
         controlsBuilder: (context, details) {
           return Padding(
@@ -213,7 +214,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
           )).toList(),
           onChanged: (val) {
             if (val != null) {
-              AudioManager().playClick(context);
+              sl<AudioManager>().playClick(context);
               setState(() => _selectedPropertyType = val);
             }
           },
@@ -285,7 +286,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          AudioManager().playClick(context);
+          sl<AudioManager>().playClick(context);
           setState(() => _transactionType = type);
         },
         child: AnimatedContainer(
@@ -329,7 +330,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
             setState(() {
               _isDraggingMap = false;
             });
-            AudioManager().triggerHaptic(context);
+            sl<AudioManager>().triggerHaptic(context);
           },
           child: Container(
             height: 250,
@@ -606,7 +607,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   }
 
   void _simulateUpload(VoidCallback onComplete) {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     final navigator = Navigator.of(context);
     showDialog(
       context: context,
@@ -615,7 +616,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
          Future.delayed(const Duration(seconds: 2), () {
             navigator.pop();
             if (!mounted) return;
-            AudioManager().playSuccess(context);
+            sl<AudioManager>().playSuccess(context);
             onComplete();
          });
          return const AlertDialog(

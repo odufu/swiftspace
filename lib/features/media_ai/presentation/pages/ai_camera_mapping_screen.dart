@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class AiCameraMappingScreen extends StatefulWidget {
   const AiCameraMappingScreen({super.key});
@@ -47,7 +48,7 @@ class _AiCameraMappingScreenState extends State<AiCameraMappingScreen> with Tick
       _mappingProgress = 0;
     });
 
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
 
     // Simulate mapping process
     _mappingTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
@@ -60,7 +61,7 @@ class _AiCameraMappingScreenState extends State<AiCameraMappingScreen> with Tick
         });
         
         if (_mappingProgress % 10 == 0) {
-           AudioManager().triggerHaptic(context);
+           sl<AudioManager>().triggerHaptic(context);
         }
       }
     });
@@ -72,8 +73,8 @@ class _AiCameraMappingScreenState extends State<AiCameraMappingScreen> with Tick
       _isComplete = true;
     });
     
-    AudioManager().playSuccess(context);
-    AudioManager().triggerHeavyHaptic(context);
+    sl<AudioManager>().playSuccess(context);
+    sl<AudioManager>().triggerHeavyHaptic(context);
   }
 
   @override

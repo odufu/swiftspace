@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:swiftspace/features/auth/presentation/pages/phone_auth_screen.dart';
+import 'package:swiftspace/features/auth/presentation/pages/email_auth_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -34,8 +35,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _pageController,
             onPageChanged: (idx) {
               setState(() => _currentPage = idx);
-              AudioManager().playSwipe(context);
-              AudioManager().triggerHaptic(context);
+              sl<AudioManager>().playSwipe(context);
+              sl<AudioManager>().triggerHaptic(context);
             },
             itemCount: _slides.length,
             itemBuilder: (context, index) {
@@ -132,8 +133,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       if (_currentPage < _slides.length - 1)
                         TextButton(
                           onPressed: () {
-                            AudioManager().playClick(context);
-                            AudioManager().triggerHaptic(context);
+                            sl<AudioManager>().playClick(context);
+                            sl<AudioManager>().triggerHaptic(context);
                             _pageController.animateToPage(
                               _slides.length - 1,
                               duration: const Duration(milliseconds: 600),
@@ -153,18 +154,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ElevatedButton(
                         onPressed: () {
                           if (_currentPage < _slides.length - 1) {
-                            AudioManager().playClick(context);
-                            AudioManager().triggerHaptic(context);
+                            sl<AudioManager>().playClick(context);
+                            sl<AudioManager>().triggerHaptic(context);
                             _pageController.nextPage(
                               duration: const Duration(milliseconds: 400),
                               curve: Curves.easeInOut,
                             );
                           } else {
-                            AudioManager().playSuccess(context);
-                            AudioManager().triggerHeavyHaptic(context);
+                            sl<AudioManager>().playSuccess(context);
+                            sl<AudioManager>().triggerHeavyHaptic(context);
                             Navigator.of(context).push(
                               PageRouteBuilder(
-                                pageBuilder: (_, _, _) => const PhoneAuthScreen(),
+                                pageBuilder: (_, _, _) => const EmailAuthScreen(),
                                 transitionsBuilder: (_, anim, _, child) {
                                   return SlideTransition(
                                     position: Tween<Offset>(

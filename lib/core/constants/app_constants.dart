@@ -4,6 +4,10 @@ class AppConstants {
   static const String appName = 'Swift Space';
   static const String appVersion = '0.1.0';
   static const String appDescription = 'Real Estate Reimagined for Nigeria';
+
+  // Map URLs
+  static const String mapUrlSatellite = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  static const String mapUrlStandard = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 }
 
 class AppAssets {

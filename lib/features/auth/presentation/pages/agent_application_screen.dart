@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class AgentApplicationScreen extends StatefulWidget {
   const AgentApplicationScreen({super.key});
@@ -14,8 +15,8 @@ class _AgentApplicationScreenState extends State<AgentApplicationScreen> {
   bool _isSubmitting = false;
 
   void _nextStep() {
-    AudioManager().playClick(context);
-    AudioManager().triggerHaptic(context);
+    sl<AudioManager>().playClick(context);
+    sl<AudioManager>().triggerHaptic(context);
     if (_currentStep < 2) {
       setState(() => _currentStep++);
     } else {
@@ -24,7 +25,7 @@ class _AgentApplicationScreenState extends State<AgentApplicationScreen> {
   }
 
   void _prevStep() {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     if (_currentStep > 0) {
       setState(() => _currentStep--);
     } else {
@@ -34,15 +35,15 @@ class _AgentApplicationScreenState extends State<AgentApplicationScreen> {
 
   void _submitApplication() async {
     setState(() => _isSubmitting = true);
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
     
     if (!mounted) return;
     
-    AudioManager().playSuccess(context);
-    AudioManager().triggerHeavyHaptic(context);
+    sl<AudioManager>().playSuccess(context);
+    sl<AudioManager>().triggerHeavyHaptic(context);
     
     // Let's pass true back, simulating an "Instant Approval" for prototyping
     Navigator.pop(context, true);

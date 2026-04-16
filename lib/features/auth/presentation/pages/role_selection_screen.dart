@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import '../state/auth_provider.dart';
+import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/main.dart';
 import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -48,25 +52,39 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
     setState(() {
       _selectedIndex = index;
     });
-    
-    AudioManager().playClick(context);
-    AudioManager().triggerHaptic(context);
 
-    // Add a slight delay before routing to let the ripple and sound finish
-    Future.delayed(const Duration(milliseconds: 400), () {
+    sl<AudioManager>().playClick(context);
+    sl<AudioManager>().triggerHaptic(context);
+
+    // Map index to role
+    final UserRole role;
+    switch (index) {
+      case 0: role = UserRole.user; break;
+      case 1: role = UserRole.agent; break;
+      case 2: role = UserRole.owner; break;
+      case 3: role = UserRole.developer; break;
+      case 4: role = UserRole.company; break;
+      default: role = UserRole.user;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    authProvider.updateRole(role).then((_) {
       if (!mounted) return;
-      if (index == 0) {
-         Navigator.pushAndRemoveUntil(
-           context,
-           MaterialPageRoute(builder: (_) => const MainLayout()),
-           (route) => false,
-         );
+      if (role == UserRole.user) {
+        // User/Explorer mode
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+          (route) => false,
+        );
       } else {
-         Navigator.pushAndRemoveUntil(
-           context,
-           MaterialPageRoute(builder: (_) => const AgentDashboardScreen()),
-           (route) => false,
-         );
+        // Professional modes - Dynamic Dashboard handles state
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AgentDashboardScreen()),
+          (route) => false,
+        );
       }
     });
   }
@@ -82,7 +100,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
           opacity: _fadeAnim,
           child: SlideTransition(
             position: _slideAnim,
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,53 +108,75 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                   const SizedBox(height: 20),
                   Image.asset(
                     'assets/logo.png',
-                    width: 48,
-                    height: 48,
+                    width: 40,
+                    height: 40,
                     color: isDark ? Colors.white : Colors.black,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
                   const Text(
                     'What brings you to\nSwift Space?',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Text(
-                    'Select how you want to use the app. You can always switch modes later in your profile.',
+                    'Select how you want to use the platform. Each professional role undergoes a verification process for security.',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.grey[600],
                       height: 1.5,
                     ),
                   ),
-                  const Spacer(),
-                  
-                  // User Role Card
+                  const SizedBox(height: 40),
+
                   _buildRoleCard(
                     context,
                     index: 0,
                     icon: LucideIcons.search,
-                    title: 'I\'m looking for a home',
-                    subtitle: 'Browse properties to buy or rent in your area.',
+                    title: 'Explorer',
+                    subtitle: 'I want to browse properties for rent or purchase.',
                     color: AppColors.primaryDark,
                   ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // Agent Role Card
+                  const SizedBox(height: 16),
                   _buildRoleCard(
                     context,
                     index: 1,
                     icon: LucideIcons.key,
-                    title: 'I want to list properties',
-                    subtitle: 'Manage your listings, CRM, and real estate sales.',
-                    color: const Color(0xFF6C63FF),
+                    title: 'Real Estate Agent',
+                    subtitle: 'Apply for agent status to list and manage properties for clients.',
+                    color: const Color(0xFF6366F1),
                   ),
-                  
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 16),
+                  _buildRoleCard(
+                    context,
+                    index: 2,
+                    icon: LucideIcons.home,
+                    title: 'Property Owner',
+                    subtitle: 'Apply for owner status to list your personal properties directly.',
+                    color: const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRoleCard(
+                    context,
+                    index: 3,
+                    icon: LucideIcons.building,
+                    title: 'Developer',
+                    subtitle: 'Apply for developer status to showcase your new projects and estates.',
+                    color: const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildRoleCard(
+                    context,
+                    index: 4,
+                    icon: LucideIcons.briefcase,
+                    title: 'Agency / Company',
+                    subtitle: 'Apply for corporate status to manage listings for your entire organization.',
+                    color: const Color(0xFFEC4899),
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),

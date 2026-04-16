@@ -1,0 +1,375 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import '../state/auth_provider.dart';
+import '../../../../core/services/audio_manager.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/utils/ui_utils.dart';
+import '../../../../core/constants/app_constants.dart';
+
+class ProfessionalApplicationScreen extends StatefulWidget {
+  const ProfessionalApplicationScreen({super.key});
+
+  @override
+  State<ProfessionalApplicationScreen> createState() => _ProfessionalApplicationScreenState();
+}
+
+class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _experienceController = TextEditingController();
+  
+  File? _governmentId;
+  File? _brokerLicense;
+  bool _termsAccepted = false;
+  int _currentStep = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final profile = Provider.of<AuthProvider>(context, listen: false).profile;
+    _nameController.text = profile?.fullName ?? '';
+    if (profile?.yearsExperience != 0) {
+      _experienceController.text = profile?.yearsExperience.toString() ?? '';
+    }
+  }
+
+  Future<void> _pickImage(bool isGovId) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    
+    if (image != null) {
+      sl<AudioManager>().playSuccess(context);
+      setState(() {
+        if (isGovId) {
+          _governmentId = File(image.path);
+        } else {
+          _brokerLicense = File(image.path);
+        }
+      });
+    }
+  }
+
+  void _nextStep() {
+    if (_currentStep == 0) {
+      if (_nameController.text.isEmpty || _experienceController.text.isEmpty) {
+        UiUtils.showError(context, 'Please fill in all details');
+        return;
+      }
+    }
+    if (_currentStep == 1) {
+      if (_governmentId == null || _brokerLicense == null) {
+        UiUtils.showError(context, 'Please upload both documents');
+        return;
+      }
+    }
+
+    sl<AudioManager>().playClick(context);
+    setState(() => _currentStep++);
+  }
+
+  void _prevStep() {
+    sl<AudioManager>().playClick(context);
+    setState(() => _currentStep--);
+  }
+
+  Future<void> _submit() async {
+    if (!_termsAccepted) {
+      UiUtils.showError(context, 'Please accept the terms');
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    try {
+      await authProvider.submitApplication(
+        fullName: _nameController.text,
+        yearsExperience: int.parse(_experienceController.text),
+        governmentIdPath: _governmentId!.path,
+        brokerLicensePath: _brokerLicense!.path,
+      );
+      
+      if (mounted) {
+        UiUtils.showSuccess(context, 'Application submitted successfully!');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showError(context, e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final roleName = authProvider.profile?.role.displayName ?? 'Professional';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Apply as $roleName'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: authProvider.isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              _buildProgressIndicator(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _buildStepContent(),
+                ),
+              ),
+              _buildFooter(),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: List.generate(3, (index) {
+          return Expanded(
+            child: Container(
+              height: 4,
+              margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
+              decoration: BoxDecoration(
+                color: index <= _currentStep ? AppColors.primaryLight : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildStepContent() {
+    switch (_currentStep) {
+      case 0: return _buildStepOne();
+      case 1: return _buildStepTwo();
+      case 2: return _buildStepThree();
+      default: return const SizedBox();
+    }
+  }
+
+  Widget _buildStepOne() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Professional Credentials', 
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text('Help us verify your expertise in the field.', 
+          style: TextStyle(color: Colors.grey[600])),
+        const SizedBox(height: 32),
+        _buildTextField(
+          controller: _nameController,
+          label: 'Full Legal Name',
+          icon: LucideIcons.user,
+        ),
+        const SizedBox(height: 20),
+        _buildTextField(
+          controller: _experienceController,
+          label: 'Years of Experience',
+          icon: LucideIcons.calendar,
+          keyboardType: TextInputType.number,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepTwo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Legal Documents', 
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text('Upload valid documents for administrative review.', 
+          style: TextStyle(color: Colors.grey[600])),
+        const SizedBox(height: 32),
+        _buildFilePicker(
+          title: 'Government Issued ID',
+          subtitle: 'Passport, Driver License, or National ID',
+          file: _governmentId,
+          onTap: () => _pickImage(true),
+          icon: LucideIcons.contact,
+        ),
+        const SizedBox(height: 24),
+        _buildFilePicker(
+          title: 'Broker / Professional License',
+          subtitle: 'Evidence of your legal authority to practice',
+          file: _brokerLicense,
+          onTap: () => _pickImage(false),
+          icon: LucideIcons.fileText,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepThree() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Finalize Application', 
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            children: [
+              _buildSummaryItem('Name', _nameController.text),
+              _buildSummaryItem('Experience', '${_experienceController.text} Years'),
+              _buildSummaryItem('Documents', '2 Files Attached'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+        Row(
+          children: [
+            Checkbox(
+              value: _termsAccepted, 
+              onChanged: (v) => setState(() => _termsAccepted = v!),
+              activeColor: AppColors.primaryLight,
+            ),
+            const Expanded(
+              child: Text('I agree to the Professional Terms of Service and verify that all provided data is accurate.'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildFilePicker({
+    required String title,
+    required String subtitle,
+    required File? file,
+    required VoidCallback onTap,
+    required IconData icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: file != null ? Colors.green.withValues(alpha: 0.05) : Colors.grey[50],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: file != null ? Colors.green.withValues(alpha: 0.3) : Colors.grey[200]!,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: file != null ? Colors.green : AppColors.primaryLight.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                file != null ? LucideIcons.check : icon,
+                color: file != null ? Colors.white : AppColors.primaryLight,
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                ],
+              ),
+            ),
+            if (file != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(file, width: 40, height: 40, fit: BoxFit.cover),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        children: [
+          if (_currentStep > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _prevStep,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text('Back'),
+              ),
+            ),
+          if (_currentStep > 0) const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: _currentStep == 2 ? _submit : _nextStep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryLight,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: Text(_currentStep == 2 ? 'Submit Application' : 'Continue'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

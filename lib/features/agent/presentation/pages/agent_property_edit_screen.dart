@@ -6,6 +6,7 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/features/auth/presentation/state/verification_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class AgentPropertyEditScreen extends StatefulWidget {
   final String propertyId;
@@ -68,7 +69,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
                     onPressed: () {
                       onSave(controller.text);
                       Navigator.pop(context);
-                      AudioManager().playSuccess(context);
+                      sl<AudioManager>().playSuccess(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -122,8 +123,11 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
                     selected: isSelected,
                     onSelected: (val) {
                       setModalState(() {
-                        if (val) selected.add(a);
-                        else selected.remove(a);
+                        if (val) {
+                          selected.add(a);
+                        } else {
+                          selected.remove(a);
+                        }
                       });
                     },
                   );
@@ -170,7 +174,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
               const Text('Change Property Type', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               DropdownButtonFormField<PropertyType>(
-                value: selected,
+                initialValue: selected,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -479,11 +483,11 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
                   Switch(
                     value: p.isActive,
-                    activeColor: Colors.white,
+                    activeThumbColor: Colors.white,
                     activeTrackColor: Colors.greenAccent,
                     onChanged: (val) {
                       propertyProvider.togglePropertyStatus(p.id);
-                      AudioManager().triggerHaptic(context);
+                      sl<AudioManager>().triggerHaptic(context);
                     },
                   ),
                 ],
@@ -684,7 +688,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
         title: Text(title, style: TextStyle(fontSize: 14, fontWeight: value ? FontWeight.bold : FontWeight.normal)),
         value: value,
         onChanged: onChanged,
-        activeColor: Theme.of(context).colorScheme.primary,
+        activeThumbColor: Theme.of(context).colorScheme.primary,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
     );
@@ -746,7 +750,6 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
   }
 
   Widget _buildEditableDocuments(Property p, PropertyProvider provider) {
-    final theme = Theme.of(context);
     
     String statusLabel = 'Unverified';
     Color statusColor = Colors.grey;
@@ -761,7 +764,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
       case PropertyVerificationStatus.verified:
         statusLabel = 'Verified';
         statusColor = Colors.green;
-        statusIcon = LucideIcons.shieldCheck;
+        statusIcon = LucideIcons.clipboardCheck;
         break;
       case PropertyVerificationStatus.issuesFlagged:
         statusLabel = 'Issues Flagged';

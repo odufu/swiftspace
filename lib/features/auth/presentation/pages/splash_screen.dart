@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:swiftspace/main.dart'; // To get MainLayout
+import 'package:provider/provider.dart';
+import '../../../agent/presentation/pages/agent_dashboard_screen.dart';
+import '../state/auth_provider.dart';
+import 'package:swiftspace/main.dart';
+import 'role_selection_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/onboarding_screen.dart';
+import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -12,7 +18,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<double> _scaleAnim;
@@ -24,42 +31,63 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeIn),
-    );
+    _fadeAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeIn));
     _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
 
     _animController.forward();
-    
+
     // Play boot sound and haptics after a tiny delay to ensure Provider is mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      AudioManager().playBoot(context);
-      AudioManager().triggerHeavyHaptic(context);
+      sl<AudioManager>().playBoot(context);
+      sl<AudioManager>().triggerHeavyHaptic(context);
     });
-    
+
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
     // Wait for the animation + artificial delay
     await Future.delayed(const Duration(milliseconds: 2500));
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (_, _, _) => const MainLayout(),
-          transitionsBuilder: (_, animation, _, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    if (authProvider.isAuthenticated) {
+      if (authProvider.profile == null) {
+        // Logged in but no profile (role) yet?
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        );
+      } else {
+        final role = authProvider.profile!.role;
+        final isProfessional =
+            role == UserRole.agent ||
+            role == UserRole.owner ||
+            role == UserRole.developer ||
+            role == UserRole.company;
+
+        final screen = role == UserRole.sadmin
+            ? const SuperAdminDashboard()
+            : (isProfessional
+                  ? const AgentDashboardScreen()
+                  : const MainLayout());
+
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 800),
+            pageBuilder: (_, _, _) => screen,
+            transitionsBuilder: (_, animation, _, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+          ),
+        );
+      }
     } else {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(

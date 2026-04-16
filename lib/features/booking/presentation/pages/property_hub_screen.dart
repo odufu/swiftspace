@@ -3,12 +3,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/booking/presentation/state/booking_provider.dart';
 import 'package:swiftspace/features/booking/domain/entities/booking.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
 import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/chat/presentation/pages/chat_list_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
+import 'package:swiftspace/core/utils/responsive.dart';
 
 // -------------------------------------------------------
 // Main Property Hub Screen
@@ -41,6 +43,7 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final escrowTx = MockEscrowStore().transactions;
+    final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -73,13 +76,13 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
               Tab(text: 'Active Hub'),
               Tab(text: 'History'),
             ],
-            onTap: (_) => AudioManager().playClick(context),
+            onTap: (_) => sl<AudioManager>().playClick(context),
           ),
         ),
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: BoxConstraints(maxWidth: isMobile ? 800 : 1200),
           child: TabBarView(
             controller: _tabController,
             children: [
@@ -104,8 +107,17 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
 
     if (commitments.isEmpty) return _buildEmptyState(theme, icon: LucideIcons.layoutDashboard, message: 'Your property journey starts here.\nEverything you commit to will appear in this hub.');
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    final isMobile = Responsive.isMobile(context);
+    final isDesktop = Responsive.isDesktop(context);
+
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isDesktop ? 3 : (isMobile ? 1 : 2),
+        crossAxisSpacing: 24,
+        mainAxisSpacing: 24,
+        mainAxisExtent: 220,
+      ),
       itemCount: commitments.length,
       itemBuilder: (context, index) => _PropertyCommitmentCard(commitment: commitments[index], isDark: isDark, theme: theme),
     );
@@ -123,8 +135,17 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
 
     if (history.isEmpty) return _buildEmptyState(theme, icon: LucideIcons.history, message: 'No closed deals or past visits yet.');
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    final isMobile = Responsive.isMobile(context);
+    final isDesktop = Responsive.isDesktop(context);
+
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isDesktop ? 3 : (isMobile ? 1 : 2),
+        crossAxisSpacing: 24,
+        mainAxisSpacing: 24,
+        mainAxisExtent: 220,
+      ),
       itemCount: history.length,
       itemBuilder: (context, index) => _PropertyCommitmentCard(commitment: history[index], isDark: isDark, theme: theme),
     );
@@ -163,7 +184,7 @@ class _PropertyCommitmentCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          AudioManager().playClick(context);
+          sl<AudioManager>().playClick(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => PropertyManagementScreen(commitment: commitment)));
         },
         borderRadius: BorderRadius.circular(20),

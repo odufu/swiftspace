@@ -1,4 +1,3 @@
-import 'dart:math';
 
 enum SavingsFrequency { daily, weekly, monthly, quarterly }
 

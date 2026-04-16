@@ -16,16 +16,27 @@ import 'features/auth/presentation/pages/splash_screen.dart';
 import 'features/booking/presentation/pages/property_hub_screen.dart';
 import 'features/property/presentation/state/property_provider.dart';
 import 'features/negotiation/presentation/state/negotiation_provider.dart';
+import 'features/auth/presentation/state/auth_provider.dart';
 import 'features/auth/presentation/state/verification_provider.dart';
 import 'features/savings/presentation/state/savings_provider.dart';
 import 'features/savings/presentation/pages/savings_screen.dart';
 import 'core/utils/responsive.dart';
 
 
+import 'package:swiftspace/core/services/supabase_service.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/features/auth/data/repositories/auth_repository.dart';
+
 import 'dart:ui';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase
+  await SupabaseService.initialize();
+
+  // Initialize Dependency Injection
+  await initGlobalDI();
   
   // Configure GoogleFonts to not crash on fetch errors
   // This helps when the device is offline
@@ -51,11 +62,12 @@ void main() async {
     return false;
   };
 
-  AudioManager().init();
+  sl<AudioManager>().init();
   
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => UserPreferencesProvider()),
@@ -65,8 +77,12 @@ void main() async {
         ChangeNotifierProvider(create: (_) => NegotiationProvider()),
         ChangeNotifierProvider(create: (_) => SavingsProvider()),
         ChangeNotifierProxyProvider<PropertyProvider, VerificationProvider>(
-          create: (context) => VerificationProvider(Provider.of<PropertyProvider>(context, listen: false)),
-          update: (context, propertyProvider, previous) => previous ?? VerificationProvider(propertyProvider),
+          create: (context) => VerificationProvider(
+            Provider.of<PropertyProvider>(context, listen: false),
+            sl<AuthRepository>(),
+          ),
+          update: (context, propertyProvider, previous) => 
+              previous ?? VerificationProvider(propertyProvider, sl<AuthRepository>()),
         ),
       ],
       child: const SwiftSpaceApp(),

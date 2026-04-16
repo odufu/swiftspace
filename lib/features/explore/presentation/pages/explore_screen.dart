@@ -5,9 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:swiftspace/core/services/audio_manager.dart';
 import 'dart:ui';
 import 'package:swiftspace/core/theme/theme_provider.dart';
+import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/explore/presentation/widgets/custom_marker.dart';
 import 'package:swiftspace/features/property/presentation/widgets/property_snippet.dart';
@@ -16,9 +17,10 @@ import 'package:swiftspace/features/explore/presentation/pages/advanced_explore_
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/core/services/ai_recommendation_service.dart';
 import 'package:swiftspace/features/negotiation/presentation/widgets/best_offer_card.dart';
-import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/core/utils/responsive.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/core/services/map_service.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -63,8 +65,6 @@ class _ExploreScreenState extends State<ExploreScreen>
     'utilities',
     'hospital',
   ];
-
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -212,6 +212,14 @@ class _ExploreScreenState extends State<ExploreScreen>
     setState(() {
       _searchQuery = query.toLowerCase();
     });
+    
+    // Animate map to the first property found in search results
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final results = _filteredProperties;
+      if (results.isNotEmpty) {
+        _animatedMapMove(results.first.location, 13.0);
+      }
+    });
   }
 
   void _showPropertySnippet(Property property) {
@@ -220,7 +228,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     });
 
     // Play "Pop" sound
-    _audioPlayer.play(AssetSource('sounds/click.mp3'));
+    sl<AudioManager>().playClick(context);
 
     showGeneralDialog(
       context: context,
@@ -706,7 +714,15 @@ class _ExploreScreenState extends State<ExploreScreen>
                             value: _sortByBestOffer,
                             onChanged: (val) {
                               setModalState(() => _sortByBestOffer = val);
-                              setState(() {});
+                              setState(() {
+                                // If turning on AI Best Offer, quickly animate to the top suggested home
+                                if (val) {
+                                  final results = _filteredProperties;
+                                  if (results.isNotEmpty) {
+                                    _animatedMapMove(results.first.location, 14.5);
+                                  }
+                                }
+                              });
                             },
                           ),
                           if (_sortByBestOffer) ...[
@@ -914,7 +930,13 @@ class _ExploreScreenState extends State<ExploreScreen>
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                final results = _filteredProperties;
+                                if (results.isNotEmpty) {
+                                  _animatedMapMove(results.first.location, 13.0);
+                                }
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.colorScheme.primary,
                                 foregroundColor: Colors.white,
@@ -1144,7 +1166,8 @@ class _ExploreScreenState extends State<ExploreScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final propId = prefs.mapFocusPropertyId;
         if (propId != null) {
-          final property = mockProperties
+          final property = Provider.of<PropertyProvider>(context, listen: false)
+              .properties
               .where((p) => p.id == propId)
               .firstOrNull;
           if (property != null) {
@@ -1665,12 +1688,6 @@ class _ExploreScreenState extends State<ExploreScreen>
   }
 
   Widget _buildMapView(bool isDark) {
-    final tileUrl = _isSatelliteMode
-        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-        : (isDark
-              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png');
-
     List<Marker> markers = _filteredProperties.asMap().entries.map((entry) {
       final index = entry.key;
       final prop = entry.value;
@@ -1736,9 +1753,9 @@ class _ExploreScreenState extends State<ExploreScreen>
       mapController: _mapController,
       options: MapOptions(initialCenter: _center, initialZoom: 13.0),
       children: [
-        TileLayer(
-          urlTemplate: tileUrl,
-          userAgentPackageName: 'com.swiftspace.app',
+        sl<IMapService>().getTileLayer(
+          isDark: isDark,
+          isSatellite: _isSatelliteMode,
         ),
         MarkerLayer(markers: markers),
       ],

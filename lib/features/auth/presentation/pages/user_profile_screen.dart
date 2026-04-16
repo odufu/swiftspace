@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/core/theme/theme_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/agent_application_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/admin_verification_screen.dart';
-import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart'; // For mock logout
-import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
+import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart';
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
+import 'package:swiftspace/features/auth/presentation/pages/edit_profile_screen.dart';
+import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -21,7 +24,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   // Synced with UserPreferencesProvider
 
   void _showTargetNotifications() {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -31,7 +34,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   void _showAppSettings() {
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -39,20 +42,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  void _logout() {
-    AudioManager().playClick(context);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const SplashScreen()),
-      (route) => false,
-    );
+  void _logout() async {
+    sl<AudioManager>().playClick(context);
+    await Provider.of<AuthProvider>(context, listen: false).signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SplashScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final userPrefs = Provider.of<UserPreferencesProvider>(context);
-    final isAgent = userPrefs.isAgent;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final profile = authProvider.profile;
+    final isAgent = profile?.role == UserRole.agent;
     
     return Scaffold(
       appBar: AppBar(
@@ -60,7 +67,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
-      body: Center(
+      body: authProvider.isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: ListView(
@@ -72,37 +81,68 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   children: [
                     Stack(
                       children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: theme.colorScheme.primary, width: 3),
-                            image: const DecorationImage(
-                              image: NetworkImage('https://i.pravatar.cc/150?img=11'),
-                              fit: BoxFit.cover,
+                        GestureDetector(
+                          onTap: () {
+                            sl<AudioManager>().playClick(context);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                          },
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: theme.colorScheme.primary, width: 3),
+                              image: profile?.avatarUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(profile!.avatarUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                             ),
+                            child: profile?.avatarUrl == null
+                                ? const Icon(LucideIcons.user, size: 50, color: Colors.grey)
+                                : null,
                           ),
                         ),
                         Positioned(
                           bottom: 0,
                           right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: theme.colorScheme.surface, width: 2),
+                          child: GestureDetector(
+                            onTap: () {
+                              sl<AudioManager>().playClick(context);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: theme.colorScheme.surface, width: 2),
+                              ),
+                              child: const Icon(LucideIcons.edit2, color: Colors.white, size: 16),
                             ),
-                            child: const Icon(LucideIcons.camera, color: Colors.white, size: 16),
                           ),
                         )
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Joel Developer', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(
+                      profile?.fullName ?? 'No Name Set',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 4),
-                    Text('joel@swiftspace.com', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                    Text(
+                      profile?.email ?? 'no-email@example.com',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    Chip(
+                      label: Text(
+                        (profile?.role.name ?? 'user').toUpperCase(),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      backgroundColor: theme.colorScheme.primary,
+                    ),
                   ],
                 ),
               ),
@@ -127,7 +167,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   } else {
                     final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AgentApplicationScreen()));
                     if (result == true) {
-                      userPrefs.toggleAgentMode(true);
+                      authProvider.updateRole(UserRole.agent);
                     }
                   }
                 },
@@ -138,7 +178,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 icon: LucideIcons.shieldCheck,
                 color: Colors.deepOrange,
                 onTap: () {
-                  AudioManager().playClick(context);
+                  sl<AudioManager>().playClick(context);
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVerificationScreen()));
                 },
               ),
@@ -279,7 +319,7 @@ class _TargetNotificationsModalState extends State<_TargetNotificationsModal> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                   AudioManager().playSuccess(context);
+                   sl<AudioManager>().playSuccess(context);
                    Navigator.pop(context);
                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Target Preferences Saved!')));
                 },

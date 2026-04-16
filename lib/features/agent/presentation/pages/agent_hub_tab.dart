@@ -7,6 +7,7 @@ import 'package:swiftspace/features/booking/presentation/state/booking_provider.
 import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/negotiation/presentation/state/negotiation_provider.dart';
 import 'package:swiftspace/features/booking/domain/entities/booking.dart';
 import 'package:swiftspace/features/negotiation/domain/entities/negotiation.dart';
@@ -164,7 +165,7 @@ class NegotiationCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          AudioManager().playClick(context);
+          sl<AudioManager>().playClick(context);
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => AgentNegotiationScreen(sessionId: session.id),
           ));
@@ -283,7 +284,7 @@ class LeadCommitmentCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          AudioManager().playClick(context);
+          sl<AudioManager>().playClick(context);
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => PropertyManagementScreen(commitment: commitment, isAgent: true),
           ));

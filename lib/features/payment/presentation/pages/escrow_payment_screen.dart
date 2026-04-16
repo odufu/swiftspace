@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 
 /// Escrow states a payment can be in
@@ -85,10 +87,12 @@ class EscrowTransaction {
   });
 
   String get formattedAmount {
-    if (amount >= 1000000)
+    if (amount >= 1000000) {
       return '$currency${(amount / 1000000).toStringAsFixed(1)}M';
-    if (amount >= 1000)
+    }
+    if (amount >= 1000) {
       return '$currency${(amount / 1000).toStringAsFixed(0)}k';
+    }
     return '$currency${amount.toStringAsFixed(0)}';
   }
 }
@@ -331,7 +335,8 @@ class _EscrowPaymentScreenState extends State<EscrowPaymentScreen> {
 
   void _confirmPayment() async {
     setState(() => _step = 1);
-    AudioManager().playClick(context);
+    sl<AudioManager>().playClick(context);
+    await SharePlus.instance.share(ShareParams(text: 'Payment initiated for ${widget.propertyTitle}'));
     await Future.delayed(const Duration(seconds: 2));
     final escrowId = 'ESC-${DateTime.now().millisecondsSinceEpoch}';
     List<EscrowInstallment> installments = [];
@@ -404,8 +409,8 @@ class _EscrowPaymentScreenState extends State<EscrowPaymentScreen> {
     );
     MockEscrowStore().transactions.insert(0, newTx);
     if (!mounted) return;
-    AudioManager().playSuccess(context);
-    AudioManager().triggerHeavyHaptic(context);
+    sl<AudioManager>().playSuccess(context);
+    sl<AudioManager>().triggerHeavyHaptic(context);
     setState(() => _step = 2);
   }
 
@@ -584,7 +589,7 @@ class _EscrowPaymentScreenState extends State<EscrowPaymentScreen> {
                 final sel = _selectedMethod == m;
                 return GestureDetector(
                   onTap: () {
-                    AudioManager().playClick(context);
+                    sl<AudioManager>().playClick(context);
                     setState(() => _selectedMethod = m);
                   },
                   child: AnimatedContainer(

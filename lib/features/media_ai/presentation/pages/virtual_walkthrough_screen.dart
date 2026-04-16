@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:panorama_viewer/panorama_viewer.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class WalkthroughNode {
   final String id;
@@ -66,8 +67,8 @@ class _VirtualWalkthroughScreenState extends State<VirtualWalkthroughScreen> {
       final String nextNodeId = _currentNode.availableMoves[direction]!;
       final nextNode = _nodes.firstWhere((n) => n.id == nextNodeId);
 
-      AudioManager().playSwipe(context);
-      AudioManager().triggerHaptic(context);
+      sl<AudioManager>().playSwipe(context);
+      sl<AudioManager>().triggerHaptic(context);
 
       setState(() {
         _currentNode = nextNode;

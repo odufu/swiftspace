@@ -8,6 +8,7 @@ import 'package:swiftspace/features/booking/domain/entities/booking.dart';
 import 'package:swiftspace/features/booking/presentation/state/booking_provider.dart';
 import 'package:swiftspace/features/chat/presentation/state/chat_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/video_player_screen.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/virtual_walkthrough_screen.dart';
@@ -74,11 +75,16 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
   }
 
   void _shareLocation() {
-    Share.share('Check out this property location: https://www.google.com/maps/search/?api=1&query=${widget.commitment.property.location.latitude},${widget.commitment.property.location.longitude}');
+    SharePlus.instance.share(
+      ShareParams(
+        text: 'Check out this property location: https://www.google.com/maps/search/?api=1&query=${widget.commitment.property.location.latitude},${widget.commitment.property.location.longitude}',
+        subject: 'Property Location',
+      ),
+    );
   }
 
   void _confirmMoveIn() async {
-    AudioManager().playSuccess(context);
+    sl<AudioManager>().playSuccess(context);
     setState(() => _isMovedIn = true);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Possession confirmed! Welcome home.')));
   }
@@ -182,7 +188,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
           runSpacing: 8,
           children: widget.commitment.property.amenities.map((f) => Chip(
             label: Text(f, style: const TextStyle(fontSize: 12)),
-            backgroundColor: theme.colorScheme.primary.withOpacity(0.05),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.05),
             side: BorderSide.none,
           )).toList(),
         ),
@@ -241,7 +247,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: color!.withOpacity(0.1),
+                          color: color!.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                           border: Border.all(color: color, width: 2),
                         ),
@@ -272,9 +278,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
      return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.amber.withOpacity(0.05),
+        color: Colors.amber.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.amber.withOpacity(0.2), width: 1),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,7 +333,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.amber[800],
-          side: BorderSide(color: Colors.amber.withOpacity(0.3)),
+          side: BorderSide(color: Colors.amber.withValues(alpha: 0.3)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
@@ -344,9 +350,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.05),
+            color: theme.colorScheme.primary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1)),
+            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
           ),
           child: Column(
             children: [
@@ -364,9 +370,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.03),
+        color: theme.colorScheme.primary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,7 +391,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
             child: LinearProgressIndicator(
               value: widget.commitment.progress,
               minHeight: 8,
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
               valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
             ),
           ),
@@ -401,9 +407,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withOpacity(0.3),
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.secondary.withOpacity(0.1)),
+        border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +460,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isOverdue ? Colors.red.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+        color: isOverdue ? Colors.red.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -479,7 +485,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,7 +573,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: inst.isPaid ? Colors.green.withOpacity(0.2) : (inst.isOverdue ? Colors.red.withOpacity(0.2) : Colors.grey.withOpacity(0.1))),
+        border: Border.all(color: inst.isPaid ? Colors.green.withValues(alpha: 0.2) : (inst.isOverdue ? Colors.red.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1))),
       ),
       child: Row(
         children: [
@@ -646,7 +652,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
               if (result == true) {
                 if (!mounted) return;
                 setState(() => _isPaid = true);
-                AudioManager().playSuccess(context);
+                sl<AudioManager>().playSuccess(context);
               }
             };
           } else {
@@ -718,7 +724,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
         width: double.infinity,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
         ),
         child: Row(
           children: [
@@ -748,7 +754,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
           padding: const EdgeInsets.symmetric(vertical: 18),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 8,
-          shadowColor: color.withOpacity(0.4),
+          shadowColor: color.withValues(alpha: 0.4),
         ),
         child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
@@ -756,7 +762,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
   }
 
   void _simulateTransferOwnership() {
-    AudioManager().playSuccess(context);
+    sl<AudioManager>().playSuccess(context);
     setState(() => _isMovedIn = true);
     
     showDialog(
@@ -780,7 +786,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
   }
 
   void _showTransferSuccess() {
-    AudioManager().playSuccess(context);
+    sl<AudioManager>().playSuccess(context);
     setState(() => _isOwnershipTransferred = true);
     showModalBottomSheet(
       context: context,
@@ -856,7 +862,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
                     // Approve and transition
                     Provider.of<BookingProvider>(context, listen: false)
                         .rateAgent(booking.id, currentRating, 'Inspection Completed Successfully.');
-                    AudioManager().playSuccess(context);
+                    sl<AudioManager>().playSuccess(context);
                     Navigator.pop(ctx);
                     setState((){});
                     
@@ -885,7 +891,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
                   onPressed: () {
                      Provider.of<BookingProvider>(context, listen: false)
                         .rateAgent(booking.id, currentRating, 'Inspection Completed Successfully.');
-                     AudioManager().playSuccess(context);
+                     sl<AudioManager>().playSuccess(context);
                      Navigator.pop(ctx);
                      setState((){});
                   },
@@ -963,7 +969,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
       ),
       child: Row(
         children: [
@@ -972,7 +978,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () {
-                  AudioManager().playClick(context);
+                  sl<AudioManager>().playClick(context);
                   Provider.of<BookingProvider>(context, listen: false).updateBookingStatus(booking.id, BookingStatus.declined);
                   Navigator.pop(context);
                 },
@@ -993,7 +999,7 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                AudioManager().playSuccess(context);
+                sl<AudioManager>().playSuccess(context);
                 onAction?.call();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('$actionLabel initiated.')),

@@ -15,14 +15,18 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   flutter_map: ^8.2.2
   geolocator: ^14.0.2
+  get_it: ^9.2.1
   google_fonts: ^8.0.2
+  image_picker: ^1.2.1
   intl: ^0.20.2
   latlong2: ^0.9.1
   lucide_icons: ^0.257.0
   panorama_viewer: ^2.0.7
+  path_provider: ^2.1.5
   provider: ^6.1.5+1
   share_plus: ^12.0.2
   shared_preferences: ^2.5.5
+  supabase_flutter: ^2.12.2
   url_launcher: ^6.3.2
   uuid: ^4.5.3
   video_player: ^2.11.1

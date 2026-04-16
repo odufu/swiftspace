@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/auth/presentation/pages/role_selection_screen.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 
@@ -43,8 +44,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     setState(() => _isLoading = false);
     if (!mounted) return;
 
-    AudioManager().playSuccess(context);
-    AudioManager().triggerHeavyHaptic(context);
+    sl<AudioManager>().playSuccess(context);
+    sl<AudioManager>().triggerHeavyHaptic(context);
 
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
@@ -61,8 +62,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     setState(() => _isError = false);
     
     // Play light click sound on keystroke
-    AudioManager().playClick(context);
-    AudioManager().triggerHaptic(context);
+    sl<AudioManager>().playClick(context);
+    sl<AudioManager>().triggerHaptic(context);
 
     if (value.isNotEmpty) {
       if (index < 3) {

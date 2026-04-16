@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
   final String title;
@@ -35,8 +36,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Single
     _animController.forward();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      AudioManager().playSuccess(context);
-      AudioManager().triggerHeavyHaptic(context);
+      sl<AudioManager>().playSuccess(context);
+      sl<AudioManager>().triggerHeavyHaptic(context);
     });
   }
 
@@ -101,8 +102,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with Single
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    AudioManager().playClick(context);
-                    AudioManager().triggerHaptic(context);
+                    sl<AudioManager>().playClick(context);
+                    sl<AudioManager>().triggerHaptic(context);
                     Navigator.of(context).pop(true);
                   },
                   style: ElevatedButton.styleFrom(

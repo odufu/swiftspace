@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:swiftspace/features/savings/domain/entities/savings_plan.dart';
 import 'package:uuid/uuid.dart';
+import 'package:swiftspace/core/services/audio_manager.dart';
 
 class SavingsProvider with ChangeNotifier {
   final List<SavingsPlan> _activePlans = [];
@@ -48,15 +49,16 @@ class SavingsProvider with ChangeNotifier {
     )
   ];
 
+  DateTime _lastInteractionTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   void _startTicker() {
-    // In our mock UI, we will simulate time passing 1000x faster if we want, or just tick real seconds
-    // For visual countdowns, ticking every second is good
+    // We no longer call notifyListeners here every second.
+    // Individual widgets that need real-time updates (like the countdown)
+    // should use their own local timers.
     _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
       _simulatedTime = DateTime.now();
-      notifyListeners();
     });
   }
-
   void createPlan({
     required String goalName,
     String? propertyId,
@@ -106,8 +108,13 @@ class SavingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+
   void simulateFastForward() {
-    // Force a mock payment to test the heatmap updating!
+    // Cooldown check: 500ms to prevent UI thread flooding
+    final now = DateTime.now();
+    if (now.difference(_lastInteractionTime).inMilliseconds < 500) return;
+    _lastInteractionTime = now;
+
     if (_activePlans.isEmpty) return;
     
     final plan = _activePlans.first;
@@ -120,3 +127,4 @@ class SavingsProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+

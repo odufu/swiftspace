@@ -24,6 +24,7 @@ import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
 import 'package:swiftspace/core/utils/responsive.dart';
+import 'package:swiftspace/features/booking/presentation/pages/property_hub_screen.dart';
 
 
 class PropertyDetailsScreen extends StatefulWidget {
@@ -66,7 +67,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PropertyProvider>().incrementViews(widget.property.id);
+      if (mounted) {
+        context.read<PropertyProvider>().incrementViews(widget.property.id);
+      }
     });
   }
 
@@ -779,7 +782,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoUrl: p.videoUrl!)));
                             }),
                           if (p.has360View && p.panoramaUrl != null) 
-                            _buildMediaChip(LucideIcons.rotate3d, '360° View', Colors.blue, theme, onTap: () {
+                            _buildMediaChip(LucideIcons.rotateCcw, '360° View', Colors.blue, theme, onTap: () {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => const VirtualWalkthroughScreen()));
                             }),
                           if (p.planImageUrl != null) 
@@ -1069,8 +1072,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                                onPressed: () {
-                                  SharePlus.instance.share(ShareParams(text: 'Check out this property location for our scheduled inspection on ${AppConstants.appName}: https://www.google.com/maps/search/?api=1&query=${p.location.latitude},${p.location.longitude}'));
+                                onPressed: () async {
+                                  try {
+                                    await SharePlus.instance.share(
+                                      ShareParams(
+                                        text: 'Check out this property: ${p.title}\n${p.locationName}\n\nDownload SwiftSpace to view more!',
+                                        subject: 'SwiftSpace Property Share',
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    debugPrint('Error sharing: $e');
+                                  }
                                 },
                               ),
                             ),
@@ -1815,59 +1827,66 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   Widget _buildDesktopCTAs(ThemeData theme, Property p) {
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 64,
-          child: ElevatedButton(
-            onPressed: () => _showInspectionDialog(context, p),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              elevation: 0,
+        if (!_inspectionPaid)
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton.icon(
+              icon: const Icon(LucideIcons.shieldCheck),
+              onPressed: _showPremiumActions,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                elevation: 0,
+              ),
+              label: const Text('Access Premium Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            child: const Text('Book Inspection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton.icon(
+              icon: const Icon(LucideIcons.layoutDashboard),
+              onPressed: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (_) => const PropertyHubScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                elevation: 0,
+              ),
+              label: const Text('Manage in Hub', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
           ),
-        ),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           height: 64,
-          child: OutlinedButton(
-            onPressed: () {},
+          child: OutlinedButton.icon(
+            icon: const Icon(LucideIcons.heart),
+            onPressed: () {
+              context.read<FavoritesProvider>().toggleFavorite(p);
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.primary,
               side: BorderSide(color: theme.colorScheme.primary, width: 2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             ),
-            child: const Text('Request Ownership Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            label: Consumer<FavoritesProvider>(
+              builder: (context, favs, _) => Text(
+                favs.isFavorite(p.id) ? 'Remove from Favorites' : 'Add to Favorites',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  void _showInspectionDialog(BuildContext context, Property p) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Book Inspection'),
-        content: Text('Would you like to schedule an inspection for ${p.title}? Our agent will contact you shortly.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Inspection request sent!')),
-              );
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ╔══════════════════════════════════════════════════════════════╗

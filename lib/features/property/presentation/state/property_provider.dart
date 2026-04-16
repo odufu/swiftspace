@@ -1,48 +1,59 @@
 import 'package:flutter/material.dart';
-import 'package:swiftspace/features/property/domain/entities/property.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../domain/entities/property.dart';
+import '../../data/repositories/property_repository.dart';
 
-class PropertyProvider with ChangeNotifier {
+class PropertyProvider extends ChangeNotifier {
+  final PropertyRepository _repository;
+  
   List<Property> _properties = [];
+  bool _isLoading = false;
+  String? _error;
 
-  PropertyProvider() {
-    // Initialize with mock data
-    _properties = List.from(mockProperties);
+  PropertyProvider({PropertyRepository? repository}) 
+      : _repository = repository ?? PropertyRepository(Supabase.instance.client) {
+    fetchProperties();
   }
 
-  List<Property> get properties {
-    return _properties
-        .where((p) => p.verificationStatus != PropertyVerificationStatus.fraudBlocked)
-        .toList();
-  }
+  List<Property> get properties => _properties;
+  List<Property> get myProperties => _properties;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  List<Property> get myProperties {
-    // For this mock app, we'll assume the currently logged in agent 
-    // is one of the listers. We'll just return all for demonstration 
-    // or filter by a specific name if needed.
-    return _properties;
-  }
+  // Filtered lists
+  List<Property> get liveProperties => _properties.where((p) => !p.isTest).toList();
+  List<Property> get testProperties => _properties.where((p) => p.isTest).toList();
 
-  void updateProperty(Property updatedProperty) {
-    final index = _properties.indexWhere((p) => p.id == updatedProperty.id);
-    if (index != -1) {
-      _properties[index] = updatedProperty;
-      notifyListeners();
-    }
-  }
-
-  void togglePropertyStatus(String id) {
-    final index = _properties.indexWhere((p) => p.id == id);
-    if (index != -1) {
-      _properties[index] = _properties[index].copyWith(
-        isActive: !_properties[index].isActive,
-      );
-      notifyListeners();
-    }
-  }
-
-  void deleteProperty(String id) {
-    _properties.removeWhere((p) => p.id == id);
+  Future<void> fetchProperties() async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      _properties = await _repository.getProperties(includeTest: true);
+    } catch (e) {
+      _error = e.toString();
+      // On error, we might want to show some notification
+      debugPrint('Error fetching properties: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void toggleFavorite(String propertyId) {
+    try {
+      final index = _properties.indexWhere((p) => p.id == propertyId);
+      if (index != -1) {
+        // In a real app, this would call the repository
+        _properties[index] = _properties[index].copyWith(
+          favoritesCount: _properties[index].favoritesCount + 1,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error toggling favorite: $e');
+    }
   }
 
   Property? getPropertyById(String id) {
@@ -71,6 +82,34 @@ class PropertyProvider with ChangeNotifier {
       );
       notifyListeners();
     }
+  }
+
+  // Statistics for the dashboard
+  int get totalProperties => _properties.length;
+  int get activeProperties => _properties.where((p) => p.isActive).length;
+  int get verifiedProperties => _properties.where((p) => p.isVerified).length;
+
+  void updateProperty(Property updatedProperty) {
+    final index = _properties.indexWhere((p) => p.id == updatedProperty.id);
+    if (index != -1) {
+      _properties[index] = updatedProperty;
+      notifyListeners();
+    }
+  }
+
+  void togglePropertyStatus(String id) {
+    final index = _properties.indexWhere((p) => p.id == id);
+    if (index != -1) {
+      _properties[index] = _properties[index].copyWith(
+        isActive: !_properties[index].isActive,
+      );
+      notifyListeners();
+    }
+  }
+
+  void deleteProperty(String id) {
+    _properties.removeWhere((p) => p.id == id);
+    notifyListeners();
   }
 
   void updateFavoritesCount(String id, int count) {
