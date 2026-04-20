@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/features/auth/data/repositories/auth_repository.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
-import 'package:swiftspace/core/di/injection_container.dart';
 
 class AdminProvider with ChangeNotifier {
-  final AuthRepository _authRepository = sl<AuthRepository>();
+  final AuthRepository _authRepository;
   final PropertyProvider _propertyProvider;
 
   List<UserProfile> _allUsers = [];
   bool _isLoading = false;
   String? _error;
 
-  AdminProvider(this._propertyProvider) {
+  AdminProvider(this._authRepository, this._propertyProvider) {
     fetchAllData();
   }
 

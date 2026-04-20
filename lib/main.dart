@@ -92,10 +92,11 @@ void main() async {
         ),
         ChangeNotifierProxyProvider<PropertyProvider, AdminProvider>(
           create: (context) => AdminProvider(
+            sl<AuthRepository>(),
             Provider.of<PropertyProvider>(context, listen: false),
           ),
           update: (context, propertyProvider, previous) => 
-              previous ?? AdminProvider(propertyProvider),
+              previous ?? AdminProvider(sl<AuthRepository>(), propertyProvider),
         ),
       ],
       child: const SwiftSpaceApp(),
