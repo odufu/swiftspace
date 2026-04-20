@@ -28,7 +28,7 @@ class RealtorsSection extends StatelessWidget {
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final realtor = realtors[index];
-                return _buildRealtorCard(context, realtor, vp);
+                return _buildRealtorCard(context, realtor, vp, ap);
               },
             ),
           ),
@@ -37,7 +37,7 @@ class RealtorsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildRealtorCard(BuildContext context, UserProfile realtor, VerificationProvider vp) {
+  Widget _buildRealtorCard(BuildContext context, UserProfile realtor, VerificationProvider vp, AdminProvider ap) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(24),
@@ -83,7 +83,7 @@ class RealtorsSection extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _showDocumentDialog(context, realtor),
+                  onPressed: () => _showApplicationDetailsDialog(context, realtor, vp, ap),
                   icon: const Icon(LucideIcons.fileSearch, size: 18),
                   label: const Text('Review documents'),
                 ),
@@ -92,8 +92,16 @@ class RealtorsSection extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => vp.approveProfessional(realtor.id),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                    onPressed: () async {
+                      await vp.approveProfessional(realtor.id);
+                      await ap.fetchAllData();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green, 
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                     child: const Text('Approve'),
                   ),
                 ),
@@ -134,45 +142,137 @@ class RealtorsSection extends StatelessWidget {
     );
   }
 
-  void _showDocumentDialog(BuildContext context, UserProfile user) {
+  void _showApplicationDetailsDialog(BuildContext context, UserProfile user, VerificationProvider vp, AdminProvider ap) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Container(
-          width: 600,
+          width: 800,
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Verification Documents', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
-                ],
-              ),
-              const SizedBox(height: 32),
-              _buildDocPreview(context, 'Government Issued ID', user.governmentIdUrl),
-              const SizedBox(height: 24),
-              _buildDocPreview(context, 'Broker / Professional License', user.brokerLicenseUrl),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryLight,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Close Preview', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Professional Application', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                      child: user.avatarUrl == null ? const Icon(LucideIcons.user, size: 40) : null,
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.fullName ?? 'Anonymous', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          Text(user.email, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                          const SizedBox(height: 8),
+                          _buildVerificationStatus(user),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      children: [
+                        _buildStatBox('Experience', '${user.yearsExperience} yrs'),
+                        const SizedBox(height: 8),
+                        _buildStatBox('Role', user.role.displayName),
+                      ],
+                    ),
+                  ],
+                ),
+                const Divider(height: 64),
+                const Text('Verification Documents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(child: _buildDocPreview(context, 'Government Issued ID', user.governmentIdUrl)),
+                    const SizedBox(width: 24),
+                    Expanded(child: _buildDocPreview(context, 'Professional License', user.brokerLicenseUrl)),
+                  ],
+                ),
+                const SizedBox(height: 48),
+                if (!user.isVerified) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await vp.rejectProfessional(user.id);
+                            await ap.fetchAllData();
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Reject Application', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            await vp.approveProfessional(user.id);
+                            await ap.fetchAllData();
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Approve Agent', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Close Details'),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryLight)),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

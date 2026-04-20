@@ -219,6 +219,7 @@ class AuthRepository {
       await _client.storage.from('documents').upload(path, file);
       return _client.storage.from('documents').getPublicUrl(path);
     } catch (e) {
+      debugPrint('Supabase Upload Error (File): $e');
       throw AppException.fromSupabase(e);
     }
   }
@@ -227,13 +228,17 @@ class AuthRepository {
     Uint8List bytes,
     String userId,
     String docType,
-    String fileName,
+    String originalName,
   ) async {
     try {
+      final fileExt = originalName.split('.').last;
+      final fileName = '$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final path = '$docType/$fileName';
+      
       await _client.storage.from('documents').uploadBinary(path, bytes);
       return _client.storage.from('documents').getPublicUrl(path);
     } catch (e) {
+      debugPrint('Supabase Upload Error (Bytes): $e');
       throw AppException.fromSupabase(e);
     }
   }
