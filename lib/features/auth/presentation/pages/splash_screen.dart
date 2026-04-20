@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/auth_provider.dart';
-import 'role_selection_screen.dart';
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
+import 'package:swiftspace/features/auth/presentation/pages/role_selection_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/onboarding_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
@@ -10,7 +10,7 @@ import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
 import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart';
 import 'package:swiftspace/core/services/connectivity_service.dart';
-import 'no_internet_screen.dart';
+import 'package:swiftspace/features/auth/presentation/pages/no_internet_screen.dart';
 import 'package:swiftspace/core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';

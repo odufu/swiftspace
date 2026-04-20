@@ -2,18 +2,18 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../agent/presentation/pages/agent_dashboard_screen.dart';
+import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/main.dart';
-import '../state/auth_provider.dart';
-import 'role_selection_screen.dart';
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
+import 'package:swiftspace/features/auth/presentation/pages/role_selection_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
 import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart';
-import 'super_admin_dashboard.dart';
-import '../../domain/models/user_profile.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../../core/services/audio_manager.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../../core/utils/ui_utils.dart';
+import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
+import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
+import 'package:swiftspace/core/constants/app_constants.dart';
+import 'package:swiftspace/core/services/audio_manager.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/core/utils/ui_utils.dart';
 
 class EmailAuthScreen extends StatefulWidget {
   const EmailAuthScreen({super.key});

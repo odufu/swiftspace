@@ -4,11 +4,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/utils/responsive.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
-import 'components/operations_sidebar.dart';
-import 'sections/overview_section.dart';
-import 'sections/users_section.dart';
-import 'sections/realtors_section.dart';
-import 'sections/properties_section.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/components/operations_sidebar.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/sections/overview_section.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/sections/users_section.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/sections/realtors_section.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/sections/properties_section.dart';
 
 class OperationsDashboard extends StatefulWidget {
   const OperationsDashboard({super.key});
