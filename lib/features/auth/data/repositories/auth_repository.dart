@@ -79,6 +79,18 @@ class AuthRepository {
     }
   }
 
+  Future<List<UserProfile>> getAllProfiles() async {
+    try {
+      final data = await _client
+          .from('profiles')
+          .select()
+          .order('created_at', ascending: false);
+      return (data as List).map((json) => UserProfile.fromJson(json)).toList();
+    } catch (e) {
+      throw AppException.fromSupabase(e);
+    }
+  }
+
   Future<void> createUserProfile(UserProfile profile) async {
     try {
       await _client.from('profiles').upsert(profile.toJson());
@@ -141,6 +153,19 @@ class AuthRepository {
       final updates = {
         if (fullName != null) 'full_name': fullName,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      await _client.from('profiles').update(updates).eq('id', userId);
+    } catch (e) {
+      throw AppException.fromSupabase(e);
+    }
+  }
+
+  Future<void> updateUserStatus(String userId, {bool? isBlocked, bool? isVerified}) async {
+    try {
+      final updates = {
+        if (isBlocked != null) 'is_blocked': isBlocked,
+        if (isVerified != null) 'is_verified': isVerified,
         'updated_at': DateTime.now().toIso8601String(),
       };
       await _client.from('profiles').update(updates).eq('id', userId);

@@ -41,6 +41,7 @@ class UserProfile {
   final String? governmentIdUrl;
   final String? brokerLicenseUrl;
   final bool termsAccepted;
+  final bool isBlocked;
   final DateTime? createdAt;
 
   UserProfile({
@@ -54,6 +55,7 @@ class UserProfile {
     this.governmentIdUrl,
     this.brokerLicenseUrl,
     this.termsAccepted = false,
+    this.isBlocked = false,
     this.createdAt,
   });
 
@@ -69,6 +71,7 @@ class UserProfile {
       governmentIdUrl: json['government_id_url'] as String?,
       brokerLicenseUrl: json['broker_license_url'] as String?,
       termsAccepted: json['terms_accepted'] as bool? ?? false,
+      isBlocked: json['is_blocked'] as bool? ?? false,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
           : null,
@@ -87,6 +90,7 @@ class UserProfile {
       'government_id_url': governmentIdUrl,
       'broker_license_url': brokerLicenseUrl,
       'terms_accepted': termsAccepted,
+      'is_blocked': isBlocked,
     };
   }
 
@@ -121,6 +125,7 @@ class UserProfile {
     String? governmentIdUrl,
     String? brokerLicenseUrl,
     bool? termsAccepted,
+    bool? isBlocked,
   }) {
     return UserProfile(
       id: id,
@@ -133,6 +138,7 @@ class UserProfile {
       governmentIdUrl: governmentIdUrl ?? this.governmentIdUrl,
       brokerLicenseUrl: brokerLicenseUrl ?? this.brokerLicenseUrl,
       termsAccepted: termsAccepted ?? this.termsAccepted,
+      isBlocked: isBlocked ?? this.isBlocked,
       createdAt: createdAt,
     );
   }

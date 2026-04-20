@@ -6,6 +6,8 @@ import '../../../agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/main.dart';
 import '../state/auth_provider.dart';
 import 'role_selection_screen.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
+import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart';
 import 'super_admin_dashboard.dart';
 import '../../domain/models/user_profile.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -99,8 +101,12 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       final role = authProvider.profile!.role;
       final isAdmin = role == UserRole.admin || role == UserRole.sadmin;
 
+      if (isAdmin) {
+        Provider.of<AdminProvider>(context, listen: false).fetchAllData();
+      }
+
       final screen = isAdmin
-          ? const SuperAdminDashboard()
+          ? const OperationsDashboard()
           : const RoleSelectionScreen();
 
       Navigator.of(context).pushAndRemoveUntil(

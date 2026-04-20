@@ -7,6 +7,8 @@ import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboar
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
+import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart';
 import 'package:swiftspace/core/services/connectivity_service.dart';
 import 'no_internet_screen.dart';
 import 'package:swiftspace/core/services/supabase_service.dart';
@@ -98,8 +100,12 @@ class _SplashScreenState extends State<SplashScreen>
         final role = authProvider.profile!.role;
         final isAdmin = role == UserRole.admin || role == UserRole.sadmin;
 
+        if (isAdmin) {
+          Provider.of<AdminProvider>(context, listen: false).fetchAllData();
+        }
+
         final screen = isAdmin
-            ? const SuperAdminDashboard()
+            ? const OperationsDashboard()
             : const RoleSelectionScreen();
 
         Navigator.of(context).pushReplacement(

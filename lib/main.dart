@@ -18,6 +18,7 @@ import 'features/property/presentation/state/property_provider.dart';
 import 'features/negotiation/presentation/state/negotiation_provider.dart';
 import 'features/auth/presentation/state/auth_provider.dart';
 import 'features/auth/presentation/state/verification_provider.dart';
+import 'features/auth/presentation/state/admin_provider.dart';
 import 'features/savings/presentation/state/savings_provider.dart';
 import 'features/savings/presentation/pages/savings_screen.dart';
 import 'core/utils/responsive.dart';
@@ -88,6 +89,13 @@ void main() async {
           ),
           update: (context, propertyProvider, previous) => 
               previous ?? VerificationProvider(propertyProvider, sl<AuthRepository>()),
+        ),
+        ChangeNotifierProxyProvider<PropertyProvider, AdminProvider>(
+          create: (context) => AdminProvider(
+            Provider.of<PropertyProvider>(context, listen: false),
+          ),
+          update: (context, propertyProvider, previous) => 
+              previous ?? AdminProvider(propertyProvider),
         ),
       ],
       child: const SwiftSpaceApp(),
