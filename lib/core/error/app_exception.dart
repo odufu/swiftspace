@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppException implements Exception {
@@ -8,6 +9,29 @@ class AppException implements Exception {
   AppException(this.message, {this.code, this.originalError});
 
   factory AppException.fromSupabase(dynamic error) {
+    // Network / connectivity errors
+    if (error is SocketException || error is HttpException) {
+      return AppException(
+        'No internet connection. Please check your network and try again.',
+        code: 'network_error',
+        originalError: error,
+      );
+    }
+
+    // Handle the error message string containing connection-related keywords
+    final errorStr = error.toString().toLowerCase();
+    if (errorStr.contains('socketexception') ||
+        errorStr.contains('failed host lookup') ||
+        errorStr.contains('network is unreachable') ||
+        errorStr.contains('connection refused') ||
+        errorStr.contains('connection timed out')) {
+      return AppException(
+        'No internet connection. Please check your network and try again.',
+        code: 'network_error',
+        originalError: error,
+      );
+    }
+
     if (error is PostgrestException) {
       return _handlePostgrestException(error);
     } else if (error is AuthException) {

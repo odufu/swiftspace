@@ -17,6 +17,7 @@ dependencies:
   geolocator: ^14.0.2
   get_it: ^9.2.1
   google_fonts: ^8.0.2
+  google_sign_in: ^7.2.0
   image_picker: ^1.2.1
   intl: ^0.20.2
   latlong2: ^0.9.1
@@ -30,6 +31,8 @@ dependencies:
   url_launcher: ^6.3.2
   uuid: ^4.5.3
   video_player: ^2.11.1
+  file_picker: ^8.0.0
+  connectivity_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:

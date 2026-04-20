@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_profile.dart';
@@ -57,6 +59,15 @@ class AuthProvider extends ChangeNotifier {
 
     _profile = await _repository.getUserProfile(userId);
     
+    // Auto-sync Google avatar if missing in profile record
+    if (_profile != null && _profile!.avatarUrl == null && _user != null) {
+      final googleAvatar = _user!.userMetadata?['avatar_url'] as String?;
+      if (googleAvatar != null) {
+        await _repository.updateProfile(_user!.id, avatarUrl: googleAvatar);
+        _profile = _profile!.copyWith(avatarUrl: googleAvatar);
+      }
+    }
+    
     _isLoading = false;
     notifyListeners();
   }
@@ -70,6 +81,21 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      await _repository.signInWithGoogle();
+      // On mobile, the browser opens and the session comes back via authStateChanges.
+      // Loading state will be cleared by _init() when the auth event fires.
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -94,6 +120,15 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateRole(UserRole role) async {
     if (_user == null) return;
+    
+    // Prevent Admins/Sadmins from accidentally downgrading themselves
+    if (_profile?.role == UserRole.admin || _profile?.role == UserRole.sadmin) {
+      if (role != UserRole.admin && role != UserRole.sadmin) {
+        debugPrint('AUTH: Blocked role downgrade for Admin/Sadmin.');
+        return;
+      }
+    }
+    
     _isLoading = true;
     notifyListeners();
     
@@ -115,24 +150,39 @@ class AuthProvider extends ChangeNotifier {
   Future<void> submitApplication({
     required String fullName,
     required int yearsExperience,
-    required String governmentIdPath,
-    required String brokerLicensePath,
+    String? governmentIdPath,
+    Uint8List? governmentIdBytes,
+    String? govIdFileName,
+    String? brokerLicensePath,
+    Uint8List? brokerLicenseBytes,
+    String? licenseFileName,
   }) async {
     if (_user == null) return;
     _isLoading = true;
     notifyListeners();
 
     try {
-      // 1. Upload Documents to specialized folders
-      final govIdUrl = await _repository.uploadDocument(governmentIdPath, _user!.id, 'id_cards');
-      final licenseUrl = await _repository.uploadDocument(brokerLicensePath, _user!.id, 'licences');
+      // 1. Upload Documents (Handle both path/mobile and bytes/web)
+      String? govIdUrl;
+      if (kIsWeb && governmentIdBytes != null) {
+        govIdUrl = await _repository.uploadDocumentBytes(governmentIdBytes, _user!.id, 'id_cards', govIdFileName ?? 'gov_id.jpg');
+      } else if (governmentIdPath != null) {
+        govIdUrl = await _repository.uploadDocument(governmentIdPath, _user!.id, 'id_cards');
+      }
+
+      String? licenseUrl;
+      if (kIsWeb && brokerLicenseBytes != null) {
+        licenseUrl = await _repository.uploadDocumentBytes(brokerLicenseBytes, _user!.id, 'licences', licenseFileName ?? 'license.jpg');
+      } else if (brokerLicensePath != null) {
+        licenseUrl = await _repository.uploadDocument(brokerLicensePath, _user!.id, 'licences');
+      }
 
       // 2. Wrap into Profile object
       final updatedProfile = _profile!.copyWith(
         fullName: fullName,
         yearsExperience: yearsExperience,
-        governmentIdUrl: govIdUrl,
-        brokerLicenseUrl: licenseUrl,
+        governmentIdUrl: govIdUrl ?? _profile?.governmentIdUrl,
+        brokerLicenseUrl: licenseUrl ?? _profile?.brokerLicenseUrl,
         termsAccepted: true,
       );
 
@@ -148,14 +198,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateProfile({String? fullName, String? imagePath}) async {
+  Future<void> updateProfile({
+    String? fullName, 
+    String? imagePath,
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
     if (_user == null) return;
     _isLoading = true;
     notifyListeners();
 
     try {
       String? avatarUrl;
-      if (imagePath != null) {
+      if (kIsWeb && imageBytes != null) {
+        avatarUrl = await _repository.uploadAvatarBytes(imageBytes, _user!.id, imageName ?? 'avatar.jpg');
+      } else if (imagePath != null) {
         avatarUrl = await _repository.uploadAvatar(imagePath, _user!.id);
       }
 

@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,7 +18,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
-  File? _imageFile;
+  XFile? _pickedFile;
+  Uint8List? _imageBytes;
   final _picker = ImagePicker();
 
   @override
@@ -41,8 +43,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
 
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _pickedFile = pickedFile;
+        _imageBytes = bytes;
       });
     }
   }
@@ -54,7 +58,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       await authProvider.updateProfile(
         fullName: _nameController.text.trim(),
-        imagePath: _imageFile?.path,
+        imagePath: kIsWeb ? null : _pickedFile?.path,
+        imageBytes: _imageBytes,
+        imageName: _pickedFile?.name,
       );
 
       if (mounted) {
@@ -110,9 +116,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: theme.colorScheme.primary, width: 3),
-                            image: _imageFile != null
+                            image: _imageBytes != null
                                 ? DecorationImage(
-                                    image: FileImage(_imageFile!),
+                                    image: MemoryImage(_imageBytes!),
                                     fit: BoxFit.cover,
                                   )
                                 : (profile?.avatarUrl != null
@@ -122,7 +128,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       )
                                     : null),
                           ),
-                          child: (_imageFile == null && profile?.avatarUrl == null)
+                          child: (_imageBytes == null && profile?.avatarUrl == null)
                               ? const Icon(LucideIcons.user, size: 60, color: Colors.grey)
                               : null,
                         ),
@@ -155,6 +161,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       prefixIcon: const Icon(LucideIcons.user, size: 20),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
                       ),
                       filled: true,
                       fillColor: theme.colorScheme.surface,
@@ -171,6 +182,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       prefixIcon: const Icon(LucideIcons.mail, size: 20),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
                       ),
                       filled: true,
                       fillColor: theme.colorScheme.surface.withValues(alpha: 0.5),

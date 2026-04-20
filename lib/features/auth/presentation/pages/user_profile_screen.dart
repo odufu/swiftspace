@@ -8,6 +8,7 @@ import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/agent_application_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/admin_verification_screen.dart';
+import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
 import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/auth/presentation/pages/edit_profile_screen.dart';
@@ -59,7 +60,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final profile = authProvider.profile;
-    final isAgent = profile?.role == UserRole.agent;
     
     return Scaffold(
       appBar: AppBar(
@@ -152,36 +152,49 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               // Account & Ecosystem
               const Text('Ecosystem Sync', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
-              _buildActionTile(
-                title: isAgent ? 'Enter Agent Dashboard' : 'Apply to Become an Agent',
-                subtitle: isAgent ? 'Manage your listings, CRM & Sales' : 'List properties and build your portfolio',
-                icon: isAgent ? LucideIcons.briefcase : LucideIcons.fileSignature,
-                color: isAgent ? Colors.green : Colors.blue,
-                onTap: () async {
-                  if (isAgent) {
+              // Agent / Professional Section
+              if (profile?.role == UserRole.user)
+                _buildActionTile(
+                  title: 'Apply to Become an Agent',
+                  subtitle: 'List properties and build your portfolio',
+                  icon: LucideIcons.fileSignature,
+                  color: Colors.blue,
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (_) => const AgentApplicationScreen())
+                    );
+                    if (result == true) {
+                      authProvider.updateRole(UserRole.agent);
+                    }
+                  },
+                ),
+
+              if (profile?.role == UserRole.agent || profile?.role == UserRole.admin || profile?.role == UserRole.sadmin)
+                _buildActionTile(
+                  title: 'Enter Agent Dashboard',
+                  subtitle: 'Manage listings, CRM & Sales',
+                  icon: LucideIcons.briefcase,
+                  color: Colors.green,
+                  onTap: () {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (_) => const AgentDashboardScreen()),
                       (route) => false,
                     );
-                  } else {
-                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AgentApplicationScreen()));
-                    if (result == true) {
-                      authProvider.updateRole(UserRole.agent);
-                    }
-                  }
-                },
-              ),
-              _buildActionTile(
-                title: 'Admin Verification Portal',
-                subtitle: 'Review & verify pending property listings',
-                icon: LucideIcons.shieldCheck,
-                color: Colors.deepOrange,
-                onTap: () {
-                  sl<AudioManager>().playClick(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVerificationScreen()));
-                },
-              ),
+                  },
+                ),
+
+              if (profile?.role == UserRole.admin || profile?.role == UserRole.sadmin)
+                _buildActionTile(
+                  title: 'Super Admin Dashboard',
+                  subtitle: 'System operations & user verification',
+                  icon: LucideIcons.shieldCheck,
+                  color: Colors.deepPurple,
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminDashboard()));
+                  },
+                ),
 
               const SizedBox(height: 24),
 

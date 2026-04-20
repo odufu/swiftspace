@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../agent/presentation/pages/agent_dashboard_screen.dart';
 import '../state/auth_provider.dart';
-import 'package:swiftspace/main.dart';
 import 'role_selection_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/onboarding_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/core/services/connectivity_service.dart';
+import 'no_internet_screen.dart';
+import 'package:swiftspace/core/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -51,8 +53,36 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuthAndNavigate() async {
+    // 1. Check Connectivity First
+    final connectivity = sl<ConnectivityService>();
+    final hasInternet = await connectivity.hasInternet();
+
+    if (!hasInternet) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => NoInternetScreen(
+              onRetry: () {
+                // Restart navigation check
+                _checkAuthAndNavigate();
+              },
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // 2. Try to ensure Supabase is initialized if it failed during main()
+    try {
+      if (!Supabase.instance.client.auth.currentSession.toString().contains('SupabaseClient')) {
+         // This is a bit hacky but we want to ensure we have a client if initialization failed
+         await SupabaseService.initialize();
+      }
+    } catch (_) {}
+
     // Wait for the animation + artificial delay
-    await Future.delayed(const Duration(milliseconds: 2500));
+    await Future.delayed(const Duration(milliseconds: 2000));
 
     if (!mounted) return;
 
@@ -66,17 +96,11 @@ class _SplashScreenState extends State<SplashScreen>
         );
       } else {
         final role = authProvider.profile!.role;
-        final isProfessional =
-            role == UserRole.agent ||
-            role == UserRole.owner ||
-            role == UserRole.developer ||
-            role == UserRole.company;
+        final isAdmin = role == UserRole.admin || role == UserRole.sadmin;
 
-        final screen = role == UserRole.sadmin
+        final screen = isAdmin
             ? const SuperAdminDashboard()
-            : (isProfessional
-                  ? const AgentDashboardScreen()
-                  : const MainLayout());
+            : const RoleSelectionScreen();
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(

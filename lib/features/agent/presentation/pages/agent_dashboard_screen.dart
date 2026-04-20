@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'agent_property_edit_screen.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
+import 'package:swiftspace/features/auth/presentation/pages/edit_profile_screen.dart';
 
 class AgentDashboardScreen extends StatefulWidget {
   const AgentDashboardScreen({super.key});
@@ -1196,15 +1197,6 @@ class _AgentAccountingTabState extends State<_AgentAccountingTab> {
 class _AgentProfileTab extends StatelessWidget {
   const _AgentProfileTab();
 
-  void _logout(BuildContext context) {
-    sl<AudioManager>().playClick(context);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const SplashScreen()),
-      (route) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1230,29 +1222,45 @@ class _AgentProfileTab extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.amber, width: 3),
-                        image: const DecorationImage(
-                          image: NetworkImage(
-                            'https://i.pravatar.cc/150?img=11',
-                          ),
-                          fit: BoxFit.cover,
+                    GestureDetector(
+                      onTap: () {
+                        sl<AudioManager>().playClick(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                      },
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.amber, width: 3),
+                          image: authProvider.profile?.avatarUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(
+                                    authProvider.profile!.avatarUrl!,
+                                  ),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
+                        child: authProvider.profile?.avatarUrl == null
+                            ? const Icon(LucideIcons.user, size: 50, color: Colors.grey)
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Joel Developer',
-                      style: TextStyle(
+                    Text(
+                      authProvider.profile?.fullName ?? 'No Name Set',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
+                    Text(
+                      authProvider.profile?.email ?? 'no-email@example.com',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -1336,7 +1344,15 @@ class _AgentProfileTab extends StatelessWidget {
                     'Sign out of your ${authProvider.profile?.role.displayName.toLowerCase() ?? 'agent'} account safely',
                 icon: LucideIcons.logOut,
                 color: Colors.red,
-                onTap: () => _logout(context),
+                onTap: () async {
+                  await authProvider.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const SplashScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
               ),
             ],
           ),

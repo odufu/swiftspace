@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_profile.dart';
@@ -16,10 +18,7 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      return await _client.auth.signUp(
-        email: email,
-        password: password,
-      );
+      return await _client.auth.signUp(email: email, password: password);
     } catch (e) {
       throw AppException.fromSupabase(e);
     }
@@ -35,6 +34,29 @@ class AuthRepository {
         password: password,
       );
     } catch (e) {
+      throw AppException.fromSupabase(e);
+    }
+  }
+
+  /// Signs in with Google via Supabase OAuth on all platforms.
+  /// - Web: redirects back to the current page origin.
+  /// - Mobile (Android/iOS): redirects via deep link back into the app.
+  /// No Firebase or google-services.json required.
+  Future<void> signInWithGoogle() async {
+    try {
+      final redirectTo = kIsWeb
+          ? Uri.base.origin
+          : 'com.swiftspace.app://login-callback';
+
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirectTo,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+      // OAuth opens the browser; the session is restored via authStateChanges
+      // once the user completes sign-in and is redirected back.
+    } catch (e) {
+      if (e is AppException) rethrow;
       throw AppException.fromSupabase(e);
     }
   }
@@ -65,16 +87,17 @@ class AuthRepository {
     }
   }
 
-  Future<void> updateUserRole(String userId, UserRole role, {bool? isVerified}) async {
+  Future<void> updateUserRole(
+    String userId,
+    UserRole role, {
+    bool? isVerified,
+  }) async {
     try {
       final updates = {
         'role': role.name,
         if (isVerified != null) 'is_verified': isVerified,
       };
-      await _client
-          .from('profiles')
-          .update(updates)
-          .eq('id', userId);
+      await _client.from('profiles').update(updates).eq('id', userId);
     } catch (e) {
       throw AppException.fromSupabase(e);
     }
@@ -84,7 +107,8 @@ class AuthRepository {
     try {
       final file = File(filePath);
       final fileExt = filePath.split('.').last;
-      final fileName = '$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final fileName =
+          '$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final path = 'avatars/$fileName';
 
       await _client.storage.from('avatars').upload(path, file);
@@ -94,7 +118,25 @@ class AuthRepository {
     }
   }
 
-  Future<void> updateProfile(String userId, {String? fullName, String? avatarUrl}) async {
+  Future<String> uploadAvatarBytes(
+    Uint8List bytes,
+    String userId,
+    String fileName,
+  ) async {
+    try {
+      final path = 'avatars/$fileName';
+      await _client.storage.from('avatars').uploadBinary(path, bytes);
+      return _client.storage.from('avatars').getPublicUrl(path);
+    } catch (e) {
+      throw AppException.fromSupabase(e);
+    }
+  }
+
+  Future<void> updateProfile(
+    String userId, {
+    String? fullName,
+    String? avatarUrl,
+  }) async {
     try {
       final updates = {
         if (fullName != null) 'full_name': fullName,
@@ -129,7 +171,7 @@ class AuthRepository {
           .select()
           .neq('role', 'user')
           .eq('is_verified', false);
-      
+
       return (data as List).map((json) => UserProfile.fromJson(json)).toList();
     } catch (e) {
       debugPrint('Error fetching pending requests: $e');
@@ -137,14 +179,34 @@ class AuthRepository {
     }
   }
 
-  Future<String> uploadDocument(String filePath, String userId, String docType) async {
+  Future<String> uploadDocument(
+    String filePath,
+    String userId,
+    String docType,
+  ) async {
     try {
       final file = File(filePath);
       final fileExt = filePath.split('.').last;
-      final fileName = '$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final fileName =
+          '$userId.${DateTime.now().millisecondsSinceEpoch}.$fileExt';
       final path = '$docType/$fileName';
 
       await _client.storage.from('documents').upload(path, file);
+      return _client.storage.from('documents').getPublicUrl(path);
+    } catch (e) {
+      throw AppException.fromSupabase(e);
+    }
+  }
+
+  Future<String> uploadDocumentBytes(
+    Uint8List bytes,
+    String userId,
+    String docType,
+    String fileName,
+  ) async {
+    try {
+      final path = '$docType/$fileName';
+      await _client.storage.from('documents').uploadBinary(path, bytes);
       return _client.storage.from('documents').getPublicUrl(path);
     } catch (e) {
       throw AppException.fromSupabase(e);
@@ -167,7 +229,10 @@ class AuthRepository {
     }
   }
 
-  Future<void> updateProfessionalVerification(String userId, bool verified) async {
+  Future<void> updateProfessionalVerification(
+    String userId,
+    bool verified,
+  ) async {
     try {
       await _client
           .from('profiles')

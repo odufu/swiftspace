@@ -39,9 +39,10 @@ class VerificationProvider extends ChangeNotifier {
 
   Future<void> approveProfessional(String userId) async {
     try {
-      await _authRepository.updateProfessionalVerification(userId, true);
+      // Upon approval, explicitly set role to AGENT and mark as VERIFIED
+      await _authRepository.updateUserRole(userId, UserRole.agent, isVerified: true);
       _pendingRequests.removeWhere((a) => a.id == userId);
-      debugPrint('SADMIN: User $userId APPROVED for professional status.');
+      debugPrint('SADMIN: User $userId APPROVED for agent status.');
       notifyListeners();
     } catch (e) {
       debugPrint('Error approving professional: $e');

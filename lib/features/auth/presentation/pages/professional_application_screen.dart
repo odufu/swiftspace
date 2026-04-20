@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
+import 'package:file_picker/file_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../state/auth_provider.dart';
@@ -17,12 +20,13 @@ class ProfessionalApplicationScreen extends StatefulWidget {
 }
 
 class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _experienceController = TextEditingController();
   
-  File? _governmentId;
-  File? _brokerLicense;
+  XFile? _governmentId;
+  Uint8List? _govIdBytes;
+  XFile? _brokerLicense;
+  Uint8List? _licenseBytes;
   bool _termsAccepted = false;
   int _currentStep = 0;
 
@@ -36,17 +40,25 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
     }
   }
 
-  Future<void> _pickImage(bool isGovId) async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+  Future<void> _pickDocument(bool isGovId) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf'],
+      withData: true,
+    );
     
-    if (image != null) {
+    if (result != null && result.files.single.bytes != null) {
+      final file = result.files.single;
+      final xFile = XFile(file.path ?? '');
       sl<AudioManager>().playSuccess(context);
+      
       setState(() {
         if (isGovId) {
-          _governmentId = File(image.path);
+          _governmentId = xFile;
+          _govIdBytes = file.bytes;
         } else {
-          _brokerLicense = File(image.path);
+          _brokerLicense = xFile;
+          _licenseBytes = file.bytes;
         }
       });
     }
@@ -87,8 +99,12 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
       await authProvider.submitApplication(
         fullName: _nameController.text,
         yearsExperience: int.parse(_experienceController.text),
-        governmentIdPath: _governmentId!.path,
-        brokerLicensePath: _brokerLicense!.path,
+        governmentIdPath: kIsWeb ? null : _governmentId?.path,
+        governmentIdBytes: _govIdBytes,
+        govIdFileName: _governmentId?.name,
+        brokerLicensePath: kIsWeb ? null : _brokerLicense?.path,
+        brokerLicenseBytes: _licenseBytes,
+        licenseFileName: _brokerLicense?.name,
       );
       
       if (mounted) {
@@ -102,7 +118,6 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final roleName = authProvider.profile?.role.displayName ?? 'Professional';
 
@@ -197,16 +212,22 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
         _buildFilePicker(
           title: 'Government Issued ID',
           subtitle: 'Passport, Driver License, or National ID',
-          file: _governmentId,
-          onTap: () => _pickImage(true),
+          hasFile: _governmentId != null,
+          bytes: _govIdBytes,
+          path: _governmentId?.path,
+          onTap: () => _pickDocument(true),
+          fileName: _governmentId?.name,
           icon: LucideIcons.contact,
         ),
         const SizedBox(height: 24),
         _buildFilePicker(
           title: 'Broker / Professional License',
           subtitle: 'Evidence of your legal authority to practice',
-          file: _brokerLicense,
-          onTap: () => _pickImage(false),
+          hasFile: _brokerLicense != null,
+          bytes: _licenseBytes,
+          path: _brokerLicense?.path,
+          onTap: () => _pickDocument(false),
+          fileName: _brokerLicense?.name,
           icon: LucideIcons.fileText,
         ),
       ],
@@ -278,8 +299,12 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+        ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: Theme.of(context).colorScheme.surface,
       ),
     );
   }
@@ -287,19 +312,23 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
   Widget _buildFilePicker({
     required String title,
     required String subtitle,
-    required File? file,
+    required bool hasFile,
+    required Uint8List? bytes,
+    required String? path,
+    required String? fileName,
     required VoidCallback onTap,
     required IconData icon,
   }) {
+    final isPdf = fileName?.toLowerCase().endsWith('.pdf') ?? false;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: file != null ? Colors.green.withValues(alpha: 0.05) : Colors.grey[50],
+          color: hasFile ? Colors.green.withValues(alpha: 0.05) : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: file != null ? Colors.green.withValues(alpha: 0.3) : Colors.grey[200]!,
+            color: hasFile ? Colors.green.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
             width: 2,
           ),
         ),
@@ -308,12 +337,12 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: file != null ? Colors.green : AppColors.primaryLight.withValues(alpha: 0.1),
+                color: hasFile ? Colors.green : AppColors.primaryLight.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                file != null ? LucideIcons.check : icon,
-                color: file != null ? Colors.white : AppColors.primaryLight,
+                hasFile ? LucideIcons.check : icon,
+                color: hasFile ? Colors.white : AppColors.primaryLight,
               ),
             ),
             const SizedBox(width: 20),
@@ -326,10 +355,19 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
                 ],
               ),
             ),
-            if (file != null)
+            if (hasFile && (bytes != null || path != null))
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(file, width: 40, height: 40, fit: BoxFit.cover),
+                child: isPdf 
+                  ? Container(
+                      width: 40,
+                      height: 40,
+                      color: Colors.red.withValues(alpha: 0.1),
+                      child: const Icon(LucideIcons.fileText, color: Colors.red, size: 20),
+                    )
+                  : (kIsWeb 
+                       ? Image.memory(bytes!, width: 40, height: 40, fit: BoxFit.cover)
+                       : Image.file(File(path!), width: 40, height: 40, fit: BoxFit.cover)),
               ),
           ],
         ),

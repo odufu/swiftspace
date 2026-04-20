@@ -32,8 +32,13 @@ import 'dart:ui';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Supabase
-  await SupabaseService.initialize();
+  // Initialize Supabase with basic error handling
+  try {
+    await SupabaseService.initialize();
+  } catch (e) {
+    debugPrint('Supabase Initialization Error: $e');
+    // We continue so the app can at least show the NoInternet screen if needed
+  }
 
   // Initialize Dependency Injection
   await initGlobalDI();

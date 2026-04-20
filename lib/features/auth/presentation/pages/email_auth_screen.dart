@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -80,26 +81,48 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       }
 
       if (mounted && authProvider.isAuthenticated) {
-        if (authProvider.profile == null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-          );
-        } else {
-          final role = authProvider.profile!.role;
-          final isProfessional = role == UserRole.agent || 
-                               role == UserRole.owner || 
-                               role == UserRole.developer || 
-                               role == UserRole.company;
+        _handleSuccessfulAuth(authProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        UiUtils.showError(context, e.toString());
+      }
+    }
+  }
 
-          final screen = role == UserRole.sadmin
-              ? const SuperAdminDashboard()
-              : (isProfessional ? const AgentDashboardScreen() : const MainLayout());
+  void _handleSuccessfulAuth(AuthProvider authProvider) {
+    if (authProvider.profile == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      );
+    } else {
+      final role = authProvider.profile!.role;
+      final isAdmin = role == UserRole.admin || role == UserRole.sadmin;
 
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => screen),
-            (route) => false,
-          );
-        }
+      final screen = isAdmin
+          ? const SuperAdminDashboard()
+          : const RoleSelectionScreen();
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => screen),
+        (route) => false,
+      );
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    sl<AudioManager>().playClick(context);
+
+    try {
+      await authProvider.signInWithGoogle();
+
+      // On web, signInWithOAuth triggers a browser redirect immediately —
+      // the page will reload and authStateChanges handles navigation.
+      // On mobile, we check isAuthenticated and navigate directly.
+      if (!kIsWeb && mounted && authProvider.isAuthenticated) {
+        UiUtils.showSuccess(context, 'Signed in with Google successfully!');
+        _handleSuccessfulAuth(authProvider);
       }
     } catch (e) {
       if (mounted) {
@@ -212,6 +235,38 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
               style: TextStyle(color: theme.colorScheme.primary),
             ),
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: Divider(color: theme.dividerColor.withValues(alpha: 0.2))),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('OR', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+              Expanded(child: Divider(color: theme.dividerColor.withValues(alpha: 0.2))),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              onPressed: authProvider.isLoading ? null : _signInWithGoogle,
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _GoogleIcon(size: 22),
+                  const SizedBox(width: 12),
+                  const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -247,4 +302,70 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       ),
     );
   }
+}
+
+/// Pure-Flutter Google "G" logo — no network required.
+class _GoogleIcon extends StatelessWidget {
+  final double size;
+  const _GoogleIcon({this.size = 24});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _GoogleGPainter(),
+    );
+  }
+}
+
+class _GoogleGPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
+    final double r = size.width / 2;
+
+    // Blue arc (top-right quadrant of the circle)
+    _drawArc(canvas, cx, cy, r, -0.52, 1.60, const Color(0xFF4285F4));
+    // Green arc (bottom-right)
+    _drawArc(canvas, cx, cy, r, 1.08, 0.80, const Color(0xFF34A853));
+    // Yellow arc (bottom-left)
+    _drawArc(canvas, cx, cy, r, 1.88, 0.80, const Color(0xFFFBBC05));
+    // Red arc (top-left)
+    _drawArc(canvas, cx, cy, r, 2.68, 0.95, const Color(0xFFEA4335));
+
+    // White cutout inner circle
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r * 0.63,
+      Paint()..color = Colors.white,
+    );
+
+    // Blue horizontal bar (the crossbar of G)
+    final Paint barPaint = Paint()..color = const Color(0xFF4285F4);
+    canvas.drawRect(
+      Rect.fromLTRB(cx, cy - r * 0.152, cx + r * 0.98, cy + r * 0.152),
+      barPaint,
+    );
+  }
+
+  void _drawArc(Canvas canvas, double cx, double cy, double r,
+      double startAngle, double sweepAngle, Color color) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = r * 0.37
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.815),
+      startAngle,
+      sweepAngle,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
