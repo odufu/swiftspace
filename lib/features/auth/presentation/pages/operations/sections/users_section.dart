@@ -16,10 +16,14 @@ class _UsersSectionState extends State<UsersSection> {
   @override
   Widget build(BuildContext context) {
     final ap = Provider.of<AdminProvider>(context);
-    final users = ap.allUsers.where((u) => 
-      u.fullName?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? true ||
-      u.email.toLowerCase().contains(_searchController.text.toLowerCase())
-    ).toList();
+    final users = ap.allUsers.where((u) {
+      final search = _searchController.text.toLowerCase();
+      final name = u.fullName?.toLowerCase() ?? '';
+      final email = u.email.toLowerCase();
+      return name.contains(search) || email.contains(search);
+    }).toList();
+
+    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -37,9 +41,10 @@ class _UsersSectionState extends State<UsersSection> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),

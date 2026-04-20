@@ -17,14 +17,14 @@ class OverviewSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatsRow(adminProvider),
+          _buildStatsRow(context, adminProvider),
           const SizedBox(height: 32),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 2, child: _buildGrowthChart()),
+              Expanded(flex: 2, child: _buildGrowthChart(context)),
               const SizedBox(width: 24),
-              Expanded(child: _buildRecentChats(chatProvider)),
+              Expanded(child: _buildRecentChats(context, chatProvider)),
             ],
           ),
         ],
@@ -32,56 +32,60 @@ class OverviewSection extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsRow(AdminProvider ap) {
+  Widget _buildStatsRow(BuildContext context, AdminProvider ap) {
     return Wrap(
-      spacing: 16,
-      runSpacing: 16,
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        _buildStatCard('Total Users', '${ap.totalUsers}', LucideIcons.users, Colors.blue),
-        _buildStatCard('Active Realtors', '${ap.totalRealtors}', LucideIcons.briefcase, Colors.green),
-        _buildStatCard('Total Properties', '${ap.totalProperties}', LucideIcons.home, Colors.orange),
-        _buildStatCard('Pending Requests', '${ap.pendingVerifications}', LucideIcons.clock, Colors.red),
+        _buildStatCard(context, 'Total Users', '${ap.totalUsers}', LucideIcons.users, Colors.blue),
+        _buildStatCard(context, 'Active Realtors', '${ap.totalRealtors}', LucideIcons.briefcase, Colors.green),
+        _buildStatCard(context, 'Total Properties', '${ap.totalProperties}', LucideIcons.home, Colors.orange),
+        _buildStatCard(context, 'Pending Requests', '${ap.pendingVerifications}', LucideIcons.clock, Colors.red),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
+    final theme = Theme.of(context);
     return Container(
-      width: 240,
-      padding: const EdgeInsets.all(24),
+      width: 200,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(height: 16),
-          Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
   }
 
-  Widget _buildGrowthChart() {
+  Widget _buildGrowthChart(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       height: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,16 +99,18 @@ class OverviewSection extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentChats(ChatProvider cp) {
+  Widget _buildRecentChats(BuildContext context, ChatProvider cp) {
+    final theme = Theme.of(context);
     return Container(
       height: 400,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

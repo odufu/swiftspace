@@ -76,7 +76,9 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
             ),
           Text(
-            _titles[_selectedIndex],
+            _selectedIndex >= 0 && _selectedIndex < _titles.length 
+                ? _titles[_selectedIndex] 
+                : _selectedIndex == -1 ? 'Settings' : 'Operations',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
@@ -105,6 +107,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
       case 1: return const UsersSection();
       case 2: return const RealtorsSection();
       case 3: return const PropertiesSection();
+      case -1: return const Center(child: Text('Settings Screen Placeholder'));
       default: return const OverviewSection();
     }
   }
