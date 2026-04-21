@@ -8,6 +8,8 @@ import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/utils/ui_utils.dart';
+import 'package:http/http.dart' as http;
+import 'dart:async';
 
 class LocationPickerComponent extends StatefulWidget {
   final LatLng initialLocation;
@@ -84,13 +86,48 @@ class _LocationPickerComponentState extends State<LocationPickerComponent> {
     }
   }
 
-  void _parseAndSetUrl(String value) {
+  Future<void> _parseAndSetUrl(String value) async {
     if (value.isEmpty) return;
 
     // Pattern to look for lat,lng in various Google Maps formats
-    // i.e. @9.0765,7.3986 or query=9.0765,7.3986
     final latLngPattern = RegExp(r'([-+]?\d+\.\d+),\s?([-+]?\d+\.\d+)');
-    final match = latLngPattern.firstMatch(value);
+    var match = latLngPattern.firstMatch(value);
+
+    // If no direct coordinate match but it's a maps link (shortened), resolve it
+    if (match == null && (value.contains('goo.gl') || value.contains('google.com/maps'))) {
+      setState(() => _isDetecting = true);
+      try {
+        var currentUrl = value;
+        int redirects = 0;
+        
+        while (redirects < 3) {
+          final uri = Uri.tryParse(currentUrl);
+          if (uri == null) break;
+
+          // We use GET and don't follow redirects automatically so we can read the location header
+          final request = http.Request('GET', uri)..followRedirects = false;
+          final response = await http.Client().send(request).timeout(const Duration(seconds: 10));
+          
+          final locationHeader = response.headers['location'];
+          if (locationHeader != null) {
+            currentUrl = locationHeader;
+            match = latLngPattern.firstMatch(currentUrl);
+            if (match != null) break; // Found coordinates!
+            redirects++;
+          } else {
+            break; // No more redirects
+          }
+        }
+      } catch (e) {
+        debugPrint('URL Resolution Error: $e');
+        if (mounted) {
+           UiUtils.showError(context, 'Could not automatically resolve this link. Please enter coordinates manually.');
+        }
+        return;
+      } finally {
+        if (mounted) setState(() => _isDetecting = false);
+      }
+    }
 
     if (match != null) {
       final lat = double.tryParse(match.group(1)!);
@@ -104,9 +141,12 @@ class _LocationPickerComponentState extends State<LocationPickerComponent> {
         UiUtils.showSuccess(context, 'Coordinates extracted from link!');
         _urlController.clear();
         FocusScope.of(context).unfocus();
+        return;
       }
-    } else {
-      UiUtils.showError(context, 'Could not find coordinates in this link. Please ensure it\'s a valid Google Maps location URL.');
+    } 
+    
+    if (mounted) {
+      UiUtils.showError(context, 'Could not extract valid coordinates (lat/lng) from this link.');
     }
   }
 

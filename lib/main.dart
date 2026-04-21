@@ -38,17 +38,18 @@ void main() async {
   
   // Initialize Supabase with basic error handling
   try {
-    await SupabaseService.initialize();
+    // Add a timeout to prevent absolute lock on web environments
+    await SupabaseService.initialize().timeout(const Duration(seconds: 5));
   } catch (e) {
-    debugPrint('Supabase Initialization Error: $e');
+    debugPrint('Supabase Initialization Error/Timeout: $e');
     // We continue so the app can at least show the NoInternet screen if needed
   }
 
   // Initialize Dependency Injection
   await initGlobalDI();
   
-  // Configure GoogleFonts to not crash on fetch errors
-  // This helps when the device is offline
+  // Configure GoogleFonts to allow runtime fetching
+  // This prevents the IDE debugger from constantly halting on font-missing Exceptions
   GoogleFonts.config.allowRuntimeFetching = true;
 
   // Global error handler for Flutter frame-work errors

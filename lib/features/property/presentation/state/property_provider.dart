@@ -260,10 +260,14 @@ class PropertyProvider extends ChangeNotifier {
   void toggleFavorite(String propertyId) {
     final index = _properties.indexWhere((p) => p.id == propertyId);
     if (index != -1) {
+      // Optimistic update locally
       _properties[index] = _properties[index].copyWith(
         favoritesCount: _properties[index].favoritesCount + 1,
       );
       notifyListeners();
+      
+      // Persist to backend without blocking
+      _repository.incrementMetric(propertyId, 'favorites_count', 1);
     }
   }
 
@@ -282,6 +286,8 @@ class PropertyProvider extends ChangeNotifier {
         viewsCount: _properties[index].viewsCount + 1,
       );
       notifyListeners();
+
+      _repository.incrementMetric(id, 'views_count', 1);
     }
   }
 
@@ -292,6 +298,8 @@ class PropertyProvider extends ChangeNotifier {
         videoViewsCount: _properties[index].videoViewsCount + 1,
       );
       notifyListeners();
+
+      _repository.incrementMetric(id, 'video_views_count', 1);
     }
   }
 

@@ -12,6 +12,8 @@ import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/components/media_picker_component.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swiftspace/features/property/presentation/pages/components/location_picker_component.dart';
 
 class PropertyOnboardingScreen extends StatefulWidget {
@@ -80,6 +82,53 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    _loadFormDraft();
+  }
+
+  Future<void> _loadFormDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draftStr = prefs.getString('onboarding_form_draft');
+    if (draftStr != null) {
+      try {
+        final data = jsonDecode(draftStr);
+        setState(() {
+          _titleController.text = data['title'] ?? '';
+          _descriptionController.text = data['description'] ?? '';
+          _priceController.text = data['price'] ?? '';
+          _sqftController.text = data['sqft'] ?? '';
+          _dueDiligenceController.text = data['dueDiligence'] ?? '';
+          _beds = data['beds'] ?? 1;
+          _baths = data['baths'] ?? 1;
+          if (data['propertyTypeIndex'] != null) {
+            _propertyType = PropertyType.values[data['propertyTypeIndex']];
+          }
+          if (data['priceTerm'] != null) {
+            _priceTerm = data['priceTerm'];
+          }
+          if (data['amenities'] != null) {
+            _selectedAmenities.clear();
+            _selectedAmenities.addAll(List<String>.from(data['amenities']));
+          }
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _autoSaveDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draft = {
+      'title': _titleController.text,
+      'description': _descriptionController.text,
+      'price': _priceController.text,
+      'sqft': _sqftController.text,
+      'dueDiligence': _dueDiligenceController.text,
+      'beds': _beds,
+      'baths': _baths,
+      'propertyTypeIndex': PropertyType.values.indexOf(_propertyType),
+      'priceTerm': _priceTerm,
+      'amenities': _selectedAmenities,
+    };
+    await prefs.setString('onboarding_form_draft', jsonEncode(draft));
   }
 
   @override
@@ -96,12 +145,14 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   void _nextStep() {
     if (_validateCurrentStep()) {
       sl<AudioManager>().playClick(context);
+      _autoSaveDraft();
       setState(() => _currentStep++);
     }
   }
 
   void _prevStep() {
     sl<AudioManager>().playClick(context);
+    _autoSaveDraft();
     setState(() => _currentStep--);
   }
 
@@ -130,11 +181,12 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   }
 
   Future<void> _saveAsDraft() async {
-    // In this simplified version, "Saving as Draft" just persists the current media progress
-    // and returns to the dashboard. The PropertyProvider handles the SharedPreferences.
+    await _autoSaveDraft();
     sl<AudioManager>().playClick(context);
-    UiUtils.showSuccess(context, 'Progress saved as draft locally');
-    Navigator.pop(context);
+    if (mounted) {
+      UiUtils.showSuccess(context, 'Progress saved as draft locally');
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _submit() async {
@@ -204,6 +256,9 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
 
     if (mounted) {
       if (success) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('onboarding_form_draft');
+        
         sl<AudioManager>().playSuccess(context);
         _confettiController.play();
         _showSuccessDialog();

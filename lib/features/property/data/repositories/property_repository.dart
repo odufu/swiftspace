@@ -66,4 +66,32 @@ class PropertyRepository {
       throw AppException.fromSupabase(e);
     }
   }
+
+  Future<void> incrementMetric(String propertyId, String metricColumn, [int amount = 1]) async {
+    // Skip if it's a mock property
+    if (propertyId.startsWith('prop_') || propertyId.startsWith('mock_')) return;
+
+    try {
+      // For a robust, offline-first execution, we fetch current, add, and push
+      final response = await _client
+          .from('properties')
+          .select(metricColumn)
+          .eq('id', propertyId)
+          .single();
+          
+      final currentCount = response[metricColumn] as int? ?? 0;
+      final newCount = currentCount + amount;
+      
+      // We don't want favorites going below 0
+      if (newCount < 0) return;
+      
+      await _client
+          .from('properties')
+          .update({metricColumn: newCount})
+          .eq('id', propertyId);
+    } catch (e) {
+      // Silently fail network metric updates to avoid disrupting the UI
+      return;
+    }
+  }
 }
