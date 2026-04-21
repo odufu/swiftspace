@@ -5,7 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/core/theme/theme_provider.dart';
 import 'package:swiftspace/features/explore/presentation/state/favorites_provider.dart';
-import 'package:swiftspace/features/explore/presentation/pages/explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/main_explore_tab.dart';
 import 'package:swiftspace/features/explore/presentation/pages/saved_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/user_profile_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
@@ -162,7 +162,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   final List<Widget> _screens = [
-    const ExploreScreen(),
+    const MainExploreTab(),
     const SavedScreen(),
     const PropertyHubScreen(),
     const VaultScreen(),

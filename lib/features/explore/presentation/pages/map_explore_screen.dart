@@ -24,14 +24,14 @@ import 'package:swiftspace/core/services/map_service.dart';
 import 'package:swiftspace/features/chat/presentation/state/notification_provider.dart';
 import 'package:swiftspace/features/chat/domain/entities/notification.dart';
 
-class ExploreScreen extends StatefulWidget {
-  const ExploreScreen({super.key});
+class MapExploreScreen extends StatefulWidget {
+  const MapExploreScreen({super.key});
 
   @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
+  State<MapExploreScreen> createState() => _MapExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen>
+class _MapExploreScreenState extends State<MapExploreScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();

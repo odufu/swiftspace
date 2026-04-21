@@ -6,14 +6,16 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
 
-class AdvancedExploreScreen extends StatefulWidget {
-  const AdvancedExploreScreen({Key? key}) : super(key: key);
+import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
+
+class GridExploreScreen extends StatefulWidget {
+  const GridExploreScreen({Key? key}) : super(key: key);
 
   @override
-  State<AdvancedExploreScreen> createState() => _AdvancedExploreScreenState();
+  State<GridExploreScreen> createState() => _GridExploreScreenState();
 }
 
-class _AdvancedExploreScreenState extends State<AdvancedExploreScreen> {
+class _GridExploreScreenState extends State<GridExploreScreen> {
   String? _selectedCompanyFilter;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -153,10 +155,22 @@ class _AdvancedExploreScreenState extends State<AdvancedExploreScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Advanced Explore', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Explore', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
+        automaticallyImplyLeading: false, 
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MapExploreScreen()),
+          );
+        },
+        backgroundColor: theme.colorScheme.primary,
+        icon: const Icon(LucideIcons.map, color: Colors.white),
+        label: const Text('View in Map', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
       body: Column(
         children: [

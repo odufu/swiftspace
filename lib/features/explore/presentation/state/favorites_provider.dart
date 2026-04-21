@@ -99,17 +99,18 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   Future<void> _pushToggleToSupabase(String propertyId, bool isAdding) async {
-    if (_userId == null) return; // Ignore if guest mode
+    final uid = _userId;
+    if (uid == null) return; // Ignore if guest mode
     try {
       if (isAdding) {
         await Supabase.instance.client.from('user_favorites').upsert({
-          'user_id': _userId,
+          'user_id': uid,
           'property_id': propertyId,
         });
       } else {
         await Supabase.instance.client.from('user_favorites')
             .delete()
-            .match({'user_id': _userId, 'property_id': propertyId});
+            .match({'user_id': uid, 'property_id': propertyId});
       }
     } catch (e) {
       debugPrint('Supabase favorite toggle failed silently to preserve offline sync. Error: $e');
