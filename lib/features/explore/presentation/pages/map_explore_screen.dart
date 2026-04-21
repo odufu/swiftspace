@@ -13,7 +13,7 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/explore/presentation/widgets/custom_marker.dart';
 import 'package:swiftspace/features/property/presentation/widgets/property_snippet.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
-import 'package:swiftspace/features/explore/presentation/pages/advanced_explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/grid_explore_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/core/services/ai_recommendation_service.dart';
 import 'package:swiftspace/features/negotiation/presentation/widgets/best_offer_card.dart';
@@ -25,7 +25,8 @@ import 'package:swiftspace/features/chat/presentation/state/notification_provide
 import 'package:swiftspace/features/chat/domain/entities/notification.dart';
 
 class MapExploreScreen extends StatefulWidget {
-  const MapExploreScreen({super.key});
+  final Property? initialProperty;
+  const MapExploreScreen({super.key, this.initialProperty});
 
   @override
   State<MapExploreScreen> createState() => _MapExploreScreenState();
@@ -71,9 +72,20 @@ class _MapExploreScreenState extends State<MapExploreScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAreaOfInterestPrompt();
-    });
+    
+    if (widget.initialProperty != null) {
+      _center = widget.initialProperty!.location;
+      _selectedProperty = widget.initialProperty;
+      _searchPin = widget.initialProperty!.location;
+      // Animate after frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _animatedMapMove(_center, 15.0);
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAreaOfInterestPrompt();
+      });
+    }
   }
 
   @override
@@ -1385,6 +1397,21 @@ class _MapExploreScreenState extends State<MapExploreScreen>
               children: [
                 Row(
                   children: [
+                    if (Navigator.canPop(context))
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: CircleAvatar(
+                          backgroundColor: theme.colorScheme.surface,
+                          radius: 25,
+                          child: IconButton(
+                            icon: Icon(
+                              LucideIcons.arrowLeft,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                      ),
                     Expanded(
                       child: Container(
                         height: 50,
@@ -1799,7 +1826,7 @@ class _MapExploreScreenState extends State<MapExploreScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const AdvancedExploreScreen(),
+                    builder: (_) => const GridExploreScreen(),
                   ),
                 );
               },

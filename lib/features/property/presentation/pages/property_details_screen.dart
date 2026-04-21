@@ -18,7 +18,7 @@ import 'package:swiftspace/features/chat/presentation/pages/chat_detail_screen.d
 import 'package:swiftspace/features/booking/presentation/pages/inspection_management_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
-import 'package:swiftspace/features/property/presentation/pages/property_map_explorer_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
 import 'package:swiftspace/core/utils/responsive.dart';
@@ -1471,19 +1471,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 ),
               ),
             ),
-            FloatingActionButton(
-              heroTag: 'map_fab_${p.id}',
+            FloatingActionButton.extended(
+              heroTag: 'view_in_map_${p.id}',
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PropertyMapExplorerScreen(property: p),
+                    builder: (_) => MapExploreScreen(initialProperty: p),
                   ),
                 );
               },
-              backgroundColor: Colors.purple,
+              backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
-              child: const Icon(LucideIcons.map),
+              icon: const Icon(LucideIcons.map),
+              label: const Text(
+                'View in Map',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),

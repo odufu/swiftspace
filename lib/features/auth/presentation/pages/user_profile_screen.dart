@@ -7,12 +7,12 @@ import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/agent/presentation/pages/professional_dashboard_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/agent_application_screen.dart';
-import 'package:swiftspace/features/auth/presentation/pages/admin_verification_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
 import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/auth/presentation/pages/edit_profile_screen.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
+import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -396,6 +396,40 @@ class _AppSettingsModal extends StatelessWidget {
             activeThumbColor: theme.colorScheme.primary,
             onChanged: (val) {}, // Normally connected to provider
             contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 24),
+          const Text('Primary Explore View', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 12),
+          Consumer<UserPreferencesProvider>(
+            builder: (context, prefs, _) {
+              return SegmentedButton<ExploreViewType>(
+                segments: const [
+                  ButtonSegment(
+                    value: ExploreViewType.grid, 
+                    label: Text('Grid'), 
+                    icon: Icon(LucideIcons.layoutGrid, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: ExploreViewType.tiktok, 
+                    label: Text('Reels'), 
+                    icon: Icon(LucideIcons.video, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: ExploreViewType.map, 
+                    label: Text('Map'), 
+                    icon: Icon(LucideIcons.mapPin, size: 16),
+                  ),
+                ],
+                selected: {prefs.preferredExploreView},
+                onSelectionChanged: (Set<ExploreViewType> newSelection) {
+                  prefs.setExploreView(newSelection.first);
+                },
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: theme.colorScheme.primary,
+                  selectedForegroundColor: Colors.white,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
         ],

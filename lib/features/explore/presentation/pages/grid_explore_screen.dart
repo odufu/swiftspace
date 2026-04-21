@@ -7,6 +7,7 @@ import 'package:swiftspace/features/property/presentation/state/property_provide
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
 
 import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
+import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 
 class GridExploreScreen extends StatefulWidget {
   const GridExploreScreen({Key? key}) : super(key: key);
@@ -161,17 +162,6 @@ class _GridExploreScreenState extends State<GridExploreScreen> {
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         automaticallyImplyLeading: false, 
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const MapExploreScreen()),
-          );
-        },
-        backgroundColor: theme.colorScheme.primary,
-        icon: const Icon(LucideIcons.map, color: Colors.white),
-        label: const Text('View in Map', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-      ),
       body: Column(
         children: [
           Container(
@@ -243,8 +233,8 @@ class _GridExploreScreenState extends State<GridExploreScreen> {
                   )
                 : GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 280,
                       childAspectRatio: 0.73,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,

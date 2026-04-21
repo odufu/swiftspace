@@ -7,6 +7,7 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/features/explore/presentation/state/favorites_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
+import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 
