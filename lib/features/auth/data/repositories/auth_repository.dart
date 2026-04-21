@@ -5,9 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_profile.dart';
 import '../../../../core/error/app_exception.dart';
+import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
+
+  // Native Google Sign-In instance
+  // Native Google Sign-In instance
+  final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn(
+    clientId: '764650338782-krwkcilbitlsbivkcuns.apps.googleusercontent.com', // Web Client ID
+    serverClientId: '764650338782-krwkcilbitlsbivkcuns.apps.googleusercontent.com',
+  );
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
@@ -38,23 +46,36 @@ class AuthRepository {
     }
   }
 
-  /// Signs in with Google via Supabase OAuth on all platforms.
+  /// Signs in with Google via Native SDK on Mobile and OAuth on Web.
   /// - Web: redirects back to the current page origin.
-  /// - Mobile (Android/iOS): redirects via deep link back into the app.
-  /// No Firebase or google-services.json required.
+  /// - Mobile (Android/iOS): Uses native system dialog and ID token.
   Future<void> signInWithGoogle() async {
     try {
-      final redirectTo = kIsWeb
-          ? Uri.base.origin
-          : 'com.swiftspace.app://login-callback';
+      if (kIsWeb) {
+        await _client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: Uri.base.origin,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        );
+        return;
+      }
 
-      await _client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: redirectTo,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+      // Native Google Sign-In for Mobile (v7.0.0+ API)
+      final google_sign_in.GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      if (googleUser == null) return; // User cancelled
+
+      final google_sign_in.GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final String idToken = googleAuth.idToken!;
+
+      if (idToken == null) {
+        throw AppException('No ID Token found from Google Sign-In.');
+      }
+
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        // accessToken is optional for Supabase when using ID token
       );
-      // OAuth opens the browser; the session is restored via authStateChanges
-      // once the user completes sign-in and is redirected back.
     } catch (e) {
       if (e is AppException) rethrow;
       throw AppException.fromSupabase(e);

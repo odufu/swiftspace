@@ -101,8 +101,8 @@ class AuthProvider extends ChangeNotifier {
     
     try {
       await _repository.signInWithGoogle();
-      // On mobile, the browser opens and the session comes back via authStateChanges.
-      // Loading state will be cleared by _init() when the auth event fires.
+      // On mobile, the native account selector opens. 
+      // On success, the session is established and handled via authStateChanges and _loadProfile.
     } catch (e) {
       _isLoading = false;
       notifyListeners();
