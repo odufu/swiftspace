@@ -45,19 +45,27 @@ class _ProfessionalApplicationScreenState extends State<ProfessionalApplicationS
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf'],
-        withData: true,
+        withData: kIsWeb, // Only load bytes in memory for Web
       );
       
-      if (result != null && result.files.single.bytes != null) {
+      if (result != null) {
         final file = result.files.single;
-        sl<AudioManager>().playSuccess(context);
+        
+        // Non-blocking UI feedback
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          sl<AudioManager>().playSuccess(context);
+        });
         
         setState(() {
           if (isGovId) {
-            _governmentId = XFile.fromData(file.bytes!, name: file.name);
+            _governmentId = kIsWeb 
+                ? XFile.fromData(file.bytes!, name: file.name)
+                : XFile(file.path!);
             _govIdBytes = file.bytes;
           } else {
-            _brokerLicense = XFile.fromData(file.bytes!, name: file.name);
+            _brokerLicense = kIsWeb
+                ? XFile.fromData(file.bytes!, name: file.name)
+                : XFile(file.path!);
             _licenseBytes = file.bytes;
           }
         });

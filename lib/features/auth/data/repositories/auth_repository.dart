@@ -83,9 +83,18 @@ class AuthRepository {
     try {
       final data = await _client
           .from('profiles')
-          .select()
-          .order('created_at', ascending: false);
-      return (data as List).map((json) => UserProfile.fromJson(json)).toList();
+          .select();
+      
+      final profiles = <UserProfile>[];
+      for (final json in (data as List)) {
+        try {
+          profiles.add(UserProfile.fromJson(json));
+        } catch (e) {
+          debugPrint('Error parsing profile for user ${json['id']}: $e');
+          // Still add a partial profile if possible or just skip
+        }
+      }
+      return profiles;
     } catch (e) {
       throw AppException.fromSupabase(e);
     }
@@ -148,13 +157,29 @@ class AuthRepository {
     String userId, {
     String? fullName,
     String? avatarUrl,
+    int? yearsExperience,
+    String? governmentIdUrl,
+    String? brokerLicenseUrl,
+    bool? termsAccepted,
   }) async {
     try {
       final updates = {
         if (fullName != null) 'full_name': fullName,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
-        'updated_at': DateTime.now().toIso8601String(),
+        if (yearsExperience != null) 'years_experience': yearsExperience,
+        'government_id_url': governmentIdUrl, // Allow setting to null on rejection
+        'broker_license_url': brokerLicenseUrl,
+        if (termsAccepted != null) 'terms_accepted': termsAccepted,
       };
+      
+      // Remove keys with undefined values if they weren't explicitly passed
+      // but were mentioned in the signature.
+      // Actually, for URLs we want to allow null to clear them.
+      if (yearsExperience == null) updates.remove('years_experience');
+      if (fullName == null) updates.remove('full_name');
+      if (avatarUrl == null) updates.remove('avatar_url');
+      if (termsAccepted == null) updates.remove('terms_accepted');
+
       await _client.from('profiles').update(updates).eq('id', userId);
     } catch (e) {
       throw AppException.fromSupabase(e);
@@ -166,7 +191,6 @@ class AuthRepository {
       final updates = {
         if (isBlocked != null) 'is_blocked': isBlocked,
         if (isVerified != null) 'is_verified': isVerified,
-        'updated_at': DateTime.now().toIso8601String(),
       };
       await _client.from('profiles').update(updates).eq('id', userId);
     } catch (e) {
@@ -251,7 +275,6 @@ class AuthRepository {
         'government_id_url': profile.governmentIdUrl,
         'broker_license_url': profile.brokerLicenseUrl,
         'terms_accepted': profile.termsAccepted,
-        'updated_at': DateTime.now().toIso8601String(),
       };
       await _client.from('profiles').update(updates).eq('id', profile.id);
     } catch (e) {

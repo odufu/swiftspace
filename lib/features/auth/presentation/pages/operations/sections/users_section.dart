@@ -16,7 +16,7 @@ class _UsersSectionState extends State<UsersSection> {
   @override
   Widget build(BuildContext context) {
     final ap = Provider.of<AdminProvider>(context);
-    final users = ap.allUsers.where((u) {
+    final users = ap.regularUsers.where((u) {
       final search = _searchController.text.toLowerCase();
       final name = u.fullName?.toLowerCase() ?? '';
       final email = u.email.toLowerCase();
@@ -39,25 +39,31 @@ class _UsersSectionState extends State<UsersSection> {
           ),
           const SizedBox(height: 24),
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: ListView.separated(
-                  itemCount: users.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final user = users[index];
-                    return _buildUserTile(user, ap);
-                  },
-                ),
-              ),
-            ),
+            child: ap.isLoading 
+              ? const Center(child: CircularProgressIndicator())
+              : ap.error != null
+                ? Center(child: Text('Error: ${ap.error}', style: const TextStyle(color: Colors.red)))
+                : users.isEmpty
+                  ? const Center(child: Text('No regular users found'))
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+                        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.05)),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: ListView.separated(
+                          itemCount: users.length,
+                          separatorBuilder: (context, index) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final user = users[index];
+                            return _buildUserTile(user, ap);
+                          },
+                        ),
+                      ),
+                    ),
           ),
         ],
       ),

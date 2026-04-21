@@ -5,6 +5,7 @@ import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart'
 import 'package:swiftspace/features/auth/presentation/state/verification_provider.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RealtorsSection extends StatelessWidget {
   const RealtorsSection({super.key});
@@ -13,24 +14,44 @@ class RealtorsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final ap = Provider.of<AdminProvider>(context);
     final vp = Provider.of<VerificationProvider>(context);
-    final realtors = ap.realtors;
+    
+    // Sort realtors: Pending first, then by name
+    final sortedRealtors = List<UserProfile>.from(ap.realtors)
+      ..sort((a, b) {
+        if (a.isVerified != b.isVerified) {
+          return a.isVerified ? 1 : -1;
+        }
+        return (a.fullName ?? '').compareTo(b.fullName ?? '');
+      });
 
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Realtor Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Realtor Management', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: () => ap.fetchAllData(), icon: const Icon(LucideIcons.refreshCw, size: 18)),
+            ],
+          ),
           const SizedBox(height: 24),
           Expanded(
-            child: ListView.separated(
-              itemCount: realtors.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final realtor = realtors[index];
-                return _buildRealtorCard(context, realtor, vp, ap);
-              },
-            ),
+            child: ap.isLoading 
+              ? const Center(child: CircularProgressIndicator())
+              : ap.error != null
+                ? Center(child: Text('Error: ${ap.error}', style: const TextStyle(color: Colors.red)))
+                : sortedRealtors.isEmpty 
+                  ? const Center(child: Text('No realtors or applicants found'))
+              : ListView.separated(
+                  itemCount: sortedRealtors.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final realtor = sortedRealtors[index];
+                    return _buildRealtorCard(context, realtor, vp, ap);
+                  },
+                ),
           ),
         ],
       ),
@@ -85,11 +106,26 @@ class RealtorsSection extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => _showApplicationDetailsDialog(context, realtor, vp, ap),
                   icon: const Icon(LucideIcons.fileSearch, size: 18),
-                  label: const Text('Review documents'),
+                  label: const Text('Review'),
                 ),
               ),
               if (!realtor.isVerified) ...[
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await vp.rejectProfessional(realtor.id);
+                      await ap.fetchAllData();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
@@ -103,6 +139,23 @@ class RealtorsSection extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Approve'),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await vp.unverifyProfessional(realtor.id);
+                      await ap.fetchAllData();
+                    },
+                    icon: const Icon(LucideIcons.shieldAlert, size: 18),
+                    label: const Text('Unverify'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: BorderSide(color: Colors.orange.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ],
@@ -278,27 +331,108 @@ class RealtorsSection extends StatelessWidget {
   }
 
   Widget _buildDocPreview(BuildContext context, String label, String? url) {
-    final isPdf = url?.toLowerCase().endsWith('.pdf') ?? false;
+    if (url == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
+          const SizedBox(height: 12),
+          Container(
+            height: 100,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            child: const Center(child: Text('No document uploaded', style: TextStyle(color: Colors.grey))),
+          ),
+        ],
+      );
+    }
+
+    final isPdf = url.toLowerCase().endsWith('.pdf');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey)),
         const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 200,
-            width: double.infinity,
-            color: Colors.grey[50],
-            child: url == null
-                ? const Center(child: Text('No document uploaded'))
-                : isPdf
-                    ? _buildPdfPlaceholder(url)
-                    : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildErrorState()),
+        GestureDetector(
+          onTap: () => _showFullscreenPreview(context, label, url, isPdf),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: Colors.grey[50],
+                    child: isPdf
+                        ? _buildPdfPlaceholder(url)
+                        : Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildErrorState()),
+                  ),
+                ),
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(LucideIcons.maximize2, color: Colors.white, size: 16),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  void _showFullscreenPreview(BuildContext context, String label, String url, bool isPdf) {
+    if (isPdf) {
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(url, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(LucideIcons.x, color: Colors.white, size: 32),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              left: 20,
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -309,13 +443,8 @@ class RealtorsSection extends StatelessWidget {
         const Icon(LucideIcons.fileText, size: 48, color: Colors.red),
         const SizedBox(height: 12),
         const Text('PDF Document', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () {
-            // In a real app, use url_launcher to open the PDF
-          },
-          child: const Text('View PDF in Browser'),
-        ),
+        const SizedBox(height: 4),
+        const Text('Click to view full document', style: TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }

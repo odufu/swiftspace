@@ -51,12 +51,31 @@ class VerificationProvider extends ChangeNotifier {
 
   Future<void> rejectProfessional(String userId) async {
     try {
-      await _authRepository.updateUserRole(userId, UserRole.user);
+      // Rejection: Reset role to user, clear verification docs so they can re-apply if needed
+      await _authRepository.updateUserRole(userId, UserRole.user, isVerified: false);
+      await _authRepository.updateProfile(
+        userId, 
+        governmentIdUrl: null, 
+        brokerLicenseUrl: null,
+        yearsExperience: 0,
+      );
+      
       _pendingRequests.removeWhere((a) => a.id == userId);
-      debugPrint('SADMIN: User $userId REJECTED and reset to USER in Supabase.');
+      debugPrint('SADMIN: User $userId REJECTED and reset to USER with cleared docs.');
       notifyListeners();
     } catch (e) {
       debugPrint('Error rejecting professional: $e');
+    }
+  }
+
+  Future<void> unverifyProfessional(String userId) async {
+    try {
+      // Unverify: Keep role but set isVerified to false
+      await _authRepository.updateUserStatus(userId, isVerified: false);
+      debugPrint('SADMIN: User $userId UNVERIFIED.');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error unverifying professional: $e');
     }
   }
 

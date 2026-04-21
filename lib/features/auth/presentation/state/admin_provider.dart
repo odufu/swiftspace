@@ -21,13 +21,15 @@ class AdminProvider with ChangeNotifier {
 
   // Filtered lists
   List<UserProfile> get realtors => _allUsers.where((u) => 
-    u.role == UserRole.agent || 
-    u.role == UserRole.owner || 
-    u.role == UserRole.developer || 
-    u.role == UserRole.company
+    // Any role that isn't a standard 'user' is considered a realtor/pro or applicant
+    u.role != UserRole.user || 
+    (u.governmentIdUrl != null || u.brokerLicenseUrl != null)
   ).toList();
 
-  List<UserProfile> get regularUsers => _allUsers.where((u) => u.role == UserRole.user).toList();
+  List<UserProfile> get regularUsers => _allUsers.where((u) => 
+    u.role == UserRole.user && 
+    (u.governmentIdUrl == null && u.brokerLicenseUrl == null)
+  ).toList();
 
   Future<void> fetchAllData() async {
     _isLoading = true;

@@ -31,26 +31,38 @@ class _AgentApplicationScreenState extends State<AgentApplicationScreen> {
   int _currentStep = 0;
 
   Future<void> _pickDocument(bool isGovId) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf'],
-      withData: true,
-    );
-    
-    if (result != null && result.files.single.bytes != null) {
-      final file = result.files.single;
-      final xFile = XFile(file.path ?? '');
-      sl<AudioManager>().playSuccess(context);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'png', 'jpeg', 'pdf'],
+        withData: kIsWeb,
+      );
       
-      setState(() {
-        if (isGovId) {
-          _governmentId = xFile;
-          _govIdBytes = file.bytes;
-        } else {
-          _brokerLicense = xFile;
-          _licenseBytes = file.bytes;
-        }
-      });
+      if (result != null) {
+        final file = result.files.single;
+        
+        // Non-blocking UI feedback
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          sl<AudioManager>().playSuccess(context);
+        });
+        
+        setState(() {
+          if (isGovId) {
+            _governmentId = kIsWeb 
+                ? XFile.fromData(file.bytes!, name: file.name)
+                : XFile(file.path!);
+            _govIdBytes = file.bytes;
+          } else {
+            _brokerLicense = kIsWeb 
+                ? XFile.fromData(file.bytes!, name: file.name)
+                : XFile(file.path!);
+            _licenseBytes = file.bytes;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking document: $e');
+      if (mounted) UiUtils.showError(context, 'Failed to pick document');
     }
   }
 

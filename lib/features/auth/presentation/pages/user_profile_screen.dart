@@ -8,7 +8,7 @@ import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/agent_application_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/admin_verification_screen.dart';
-import 'package:swiftspace/features/auth/presentation/pages/super_admin_dashboard.dart';
+import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
 import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/auth/presentation/pages/edit_profile_screen.dart';
@@ -187,12 +187,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
               if (profile?.role == UserRole.admin || profile?.role == UserRole.sadmin)
                 _buildActionTile(
-                  title: 'Super Admin Dashboard',
-                  subtitle: 'System operations & user verification',
+                  title: 'Operations Dashboard',
+                  subtitle: 'Central Management & Verification',
                   icon: LucideIcons.shieldCheck,
                   color: Colors.deepPurple,
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminDashboard()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const OperationsDashboard()));
                   },
                 ),
 
