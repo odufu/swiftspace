@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../state/auth_provider.dart';
 import 'package:swiftspace/features/auth/domain/models/user_profile.dart';
 import 'package:swiftspace/main.dart';
-import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_dashboard_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
@@ -82,7 +82,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
         // Professional modes - Dynamic Dashboard handles state
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const AgentDashboardScreen()),
+          MaterialPageRoute(builder: (_) => const ProfessionalDashboardScreen()),
           (route) => false,
         );
       }

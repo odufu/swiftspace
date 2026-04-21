@@ -864,7 +864,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Toggle standard percentage-based fees that will be collected in escrow during checkout.',
+          'Toggle if your company collects separate processing fees during property checkout.',
           style: TextStyle(color: Colors.grey, fontSize: 13),
         ),
         const SizedBox(height: 16),

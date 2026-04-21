@@ -23,7 +23,7 @@ class PropertyOnboardingScreen extends StatefulWidget {
 
 class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   int _currentStep = 0;
-  final int _totalSteps = 5;
+  final int _totalSteps = 7;
   late ConfettiController _confettiController;
 
   // Step 1: Basics
@@ -47,9 +47,34 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   int _baths = 0;
   final List<String> _selectedAmenities = [];
   final List<String> _allAmenities = [
-    '24/7 Security', 'Swimming Pool', 'Gym', 'Parking Space', 
-    'Elevator', 'Fenced', 'Electricity Supply', 'Running Water'
+    '24/7 Power', 'Running Water', 'Security Guard', 'Fenced & Gated', 
+    'Pre-paid Meter', 'Generator House', 'Tarred Road', 'En-suite', 
+    'POP Ceiling', 'Wardrobe', 'Ample Parking', 'Swimming Pool', 
+    'CCTV Cameras', 'Boys Quarters', 'Tiled Floors', 'Air Conditioning',
+    'Fiber Internet', 'Gym', 'Playground', 'Garden', 'Smart Home'
   ];
+
+  // Proximity Metrics
+  int _proximityToRoad = 100;
+  int _electricityHours = 12;
+  double _proximityToHospital = 2.0;
+
+  // Step 5: Technical Specs
+  int? _yearBuilt;
+  final _sqftController = TextEditingController();
+  String _foundationType = 'Strip Foundation';
+  bool _floodingHistory = false;
+
+  // Step 6: Legal & Documents
+  bool _hasCOofO = false;
+  bool _hasGovernorsConsent = false;
+  bool _hasSurveyPlan = false;
+  bool _hasDeedOfAssignment = false;
+  bool _hasBuildingPlanApproval = false;
+  bool _hasSoilTest = false;
+  bool _hasStructuralReport = false;
+  final _dueDiligenceController = TextEditingController();
+  bool _lawyerVerified = false;
 
   @override
   void initState() {
@@ -62,6 +87,8 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _sqftController.dispose();
+    _dueDiligenceController.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -85,9 +112,18 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         return false;
       }
     } else if (_currentStep == 1) {
-      if (_images.length < 5) {
-        UiUtils.showError(context, 'Please upload at least 5 photos');
+      if (_images.length < 3) {
+        UiUtils.showError(context, 'Please upload at least 3 photos');
         return false;
+      }
+    } else if (_currentStep == 4) {
+      if (_yearBuilt == null) {
+        UiUtils.showError(context, 'Please specify the building year');
+        return false;
+      }
+    } else if (_currentStep == 5) {
+      if (!_hasSurveyPlan && !_hasCOofO && !_hasGovernorsConsent) {
+        UiUtils.showWarning(context, 'Proceeding without major title documents may slow down verification.');
       }
     }
     return true;
@@ -131,10 +167,23 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       listerType: ListerType.agent,
       agentPhone: authProvider.profile?.email ?? '',
       isVerified: false,
-      proximityToRoadMeters: 0,
-      electricitySupplyHours: 0,
-      hasRunningWater: true,
-      proximityToHospitalKm: 0,
+      proximityToRoadMeters: _proximityToRoad,
+      electricitySupplyHours: _electricityHours.toDouble(),
+      hasRunningWater: _selectedAmenities.contains('Running Water'),
+      proximityToHospitalKm: _proximityToHospital,
+      yearBuilt: _yearBuilt,
+      totalSquareFootage: double.tryParse(_sqftController.text),
+      floodingHistory: _floodingHistory,
+      foundationType: _foundationType,
+      hasCertificateOfOccupancy: _hasCOofO,
+      hasGovernorsConsent: _hasGovernorsConsent,
+      hasSurveyPlan: _hasSurveyPlan,
+      hasDeedOfAssignment: _hasDeedOfAssignment,
+      hasBuildingPlanApproval: _hasBuildingPlanApproval,
+      hasSoilTestReport: _hasSoilTest,
+      hasStructuralIntegrityReport: _hasStructuralReport,
+      dueDiligenceNotes: _dueDiligenceController.text,
+      hasLawyerVerifiedTerms: _lawyerVerified,
       verificationStatus: PropertyVerificationStatus.pendingReview,
       isActive: true,
     );
@@ -297,7 +346,9 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       case 1: return _buildStepMedia();
       case 2: return _buildStepLocation();
       case 3: return _buildStepDetails();
-      case 4: return _buildStepReview();
+      case 4: return _buildStepTechnical();
+      case 5: return _buildStepLegal();
+      case 6: return _buildStepReview();
       default: return Container();
     }
   }
@@ -426,11 +477,121 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
             );
           }).toList(),
         ),
+        const SizedBox(height: 32),
+        const Text('Proximity & Vital Signs', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        _buildSlider('Road Proximity (meters)', _proximityToRoad.toDouble(), 0, 1000, (v) => setState(() => _proximityToRoad = v.toInt())),
+        _buildSlider('Avg. Electricity (hrs/day)', _electricityHours.toDouble(), 0, 24, (v) => setState(() => _electricityHours = v.toInt())),
+        _buildSlider('Hospital Proximity (km)', _proximityToHospital, 0, 20, (v) => setState(() => _proximityToHospital = v)),
         const SizedBox(height: 24),
         TextField(
           controller: _descriptionController,
           maxLines: 4,
-          decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'General Description', border: OutlineInputBorder()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepTechnical() {
+    return Column(
+      key: const ValueKey(4),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Technical Specifications', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text('Provide technical details about the structure.', style: TextStyle(color: Colors.grey)),
+        const SizedBox(height: 32),
+        DropdownButtonFormField<int>(
+          initialValue: _yearBuilt,
+          items: List.generate(50, (index) => 2026 - index).map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+          onChanged: (v) => setState(() => _yearBuilt = v),
+          decoration: const InputDecoration(labelText: 'Year Built', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _sqftController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Total Square Footage (approx)', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 24),
+        DropdownButtonFormField<String>(
+          initialValue: _foundationType,
+          items: ['Strip Foundation', 'Raft Foundation', 'Pile Foundation', 'Pad Foundation'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (v) => setState(() => _foundationType = v!),
+          decoration: const InputDecoration(labelText: 'Foundation Type', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 24),
+        SwitchListTile(
+          title: const Text('History of Flooding in Area?'),
+          subtitle: const Text('Integrity check for low-lying areas'),
+          value: _floodingHistory,
+          onChanged: (v) => setState(() => _floodingHistory = v),
+          activeThumbColor: AppColors.primaryLight,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepLegal() {
+    return Column(
+      key: const ValueKey(5),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Verification & Documents', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text('Check the boxes for documents you have available.', style: TextStyle(color: Colors.grey)),
+        const SizedBox(height: 32),
+        _buildCheckItem('Certificate of Occupancy (C of O)', _hasCOofO, (v) => setState(() => _hasCOofO = v!)),
+        _buildCheckItem('Governor\'s Consent', _hasGovernorsConsent, (v) => setState(() => _hasGovernorsConsent = v!)),
+        _buildCheckItem('Survey Plan', _hasSurveyPlan, (v) => setState(() => _hasSurveyPlan = v!)),
+        _buildCheckItem('Deed of Assignment', _hasDeedOfAssignment, (v) => setState(() => _hasDeedOfAssignment = v!)),
+        _buildCheckItem('Building Plan Approval', _hasBuildingPlanApproval, (v) => setState(() => _hasBuildingPlanApproval = v!)),
+        const Divider(height: 48),
+        const Text('Due Diligence', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        _buildCheckItem('Soil Test Report Available', _hasSoilTest, (v) => setState(() => _hasSoilTest = v!)),
+        _buildCheckItem('Structural Integrity Report', _hasStructuralReport, (v) => setState(() => _hasStructuralReport = v!)),
+        _buildCheckItem('Lawyer Verified Terms', _lawyerVerified, (v) => setState(() => _lawyerVerified = v!)),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _dueDiligenceController,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Internal Due Diligence Notes', hintText: 'Any extra technical or legal notes...', border: OutlineInputBorder()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheckItem(String label, bool value, Function(bool?) onChanged) {
+    return CheckboxListTile(
+      title: Text(label, style: const TextStyle(fontSize: 14)),
+      value: value,
+      onChanged: onChanged,
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+      activeColor: AppColors.primaryLight,
+      dense: true,
+    );
+  }
+
+  Widget _buildSlider(String label, double value, double min, double max, Function(double) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(value.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          onChanged: onChanged,
+          activeColor: AppColors.primaryLight,
         ),
       ],
     );
@@ -438,18 +599,26 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
 
   Widget _buildStepReview() {
     return Column(
-      key: const ValueKey(4),
+      key: const ValueKey(6),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Ready to go?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        const Text('Review your listing details before publishing.', style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 32),
         _buildReviewRow('Title', _titleController.text),
         _buildReviewRow('Price', '₦${_priceController.text}/$_priceTerm'),
         _buildReviewRow('Type', _propertyType.displayName),
         _buildReviewRow('Photos', '${_images.length} uploaded'),
         _buildReviewRow('Location', _locationName.isEmpty ? 'Abuja' : _locationName),
+        const Divider(height: 32),
+        const Text('Technical Specs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryLight)),
+        const SizedBox(height: 12),
+        _buildReviewRow('Year Built', '$_yearBuilt'),
+        _buildReviewRow('SQFT', _sqftController.text.isEmpty ? 'N/A' : _sqftController.text),
+        _buildReviewRow('Flooding History', _floodingHistory ? 'Yes' : 'No'),
+        const Divider(height: 32),
+        const Text('Legal Documents', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryLight)),
+        const SizedBox(height: 12),
+        _buildReviewRow('C of O', _hasCOofO ? 'Available' : 'Not Listed'),
+        _buildReviewRow('Survey Plan', _hasSurveyPlan ? 'Available' : 'Not Listed'),
+        _buildReviewRow('Lawyer Verified', _lawyerVerified ? 'Yes' : 'No'),
       ],
     );
   }

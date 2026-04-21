@@ -8,9 +8,6 @@ import 'package:swiftspace/features/explore/presentation/state/favorites_provide
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/video_player_screen.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/virtual_walkthrough_screen.dart';
-import 'package:swiftspace/features/payment/presentation/pages/payment_success_screen.dart';
-import 'package:swiftspace/features/payment/presentation/pages/payment_failure_screen.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/features/booking/presentation/state/booking_provider.dart';
 import 'package:swiftspace/features/chat/presentation/state/chat_provider.dart';
@@ -24,26 +21,19 @@ import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
 import 'package:swiftspace/core/utils/responsive.dart';
-import 'package:swiftspace/features/booking/presentation/pages/property_hub_screen.dart';
-
 
 class PropertyDetailsScreen extends StatefulWidget {
   final Property property;
 
-  const PropertyDetailsScreen({
-    super.key,
-    required this.property,
-  });
+  const PropertyDetailsScreen({super.key, required this.property});
 
   @override
   State<PropertyDetailsScreen> createState() => _PropertyDetailsScreenState();
 }
 
 class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
-  bool _agentRevealed = false;
-  bool _inspectionPaid = false;
   int _currentImageIndex = 0;
-  
+
   late Timer _tooltipTimer;
   int _currentTooltipIndex = 0;
   final List<String> _tooltipPhrases = [
@@ -61,7 +51,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     _tooltipTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
         setState(() {
-          _currentTooltipIndex = (_currentTooltipIndex + 1) % _tooltipPhrases.length;
+          _currentTooltipIndex =
+              (_currentTooltipIndex + 1) % _tooltipPhrases.length;
         });
       }
     });
@@ -91,80 +82,26 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         children: [
           Icon(icon, size: 12, color: Colors.grey[600]),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Future<void> _openLocationInGoogleMaps(double lat, double lng) async {
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    final url = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+    );
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
     }
-  }
-
-  void _simulatePaymentFlow(String title, String successDesc, int amount, VoidCallback onSuccess) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: Colors.green),
-              const SizedBox(height: 20),
-              Text(
-                'Processing ₦$amount...',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Please wait while we secure your request securely.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    // Simulate network delay
-    Future.delayed(const Duration(seconds: 2), () async {
-      if (!mounted) return;
-      Navigator.pop(context); // Close loading
-      
-      // Simulate random failure (10% chance)
-      final bool isSuccess = DateTime.now().millisecond % 10 != 0;
-
-      if (isSuccess) {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessScreen(
-              title: '$title Successful!',
-              description: successDesc,
-            ),
-          ),
-        );
-        if (result == true) {
-          onSuccess();
-        }
-      } else {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PaymentFailureScreen(
-              title: 'Payment Failed',
-              description: 'Your bank declined the transaction. Please try again.',
-            ),
-          ),
-        );
-      }
-    });
   }
 
   void _showMockNotification(String title, String body) {
@@ -182,16 +119,29 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4))
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
-            border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            ),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: Icon(LucideIcons.bell, color: theme.colorScheme.primary, size: 20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  LucideIcons.bell,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -199,9 +149,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(body, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Text(
+                      body,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -242,96 +201,82 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text('Premium Actions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text(
+                'Premium Actions',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
-              Text('Access high-value tools to secure this property.', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+              Text(
+                'Access high-value tools to secure this property.',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
               const SizedBox(height: 24),
-              
-              // Action 1: Inspection (via Escrow)
-              if (!_inspectionPaid)
-                _buildActionTile(
-                  icon: LucideIcons.shieldCheck,
-                  title: 'Book Verified Inspection',
-                  subtitle: 'Funds held in escrow — released only after visit.',
-                  price: '₦5,000',
-                  color: Colors.teal,
-                  onTap: () async {
-                    Navigator.pop(sheetContext); // Close actions sheet
-                    // Show Date/Time Picker first
-                    final selectedDateTime = await showModalBottomSheet<DateTime>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => InspectionDatePicker(
-                        property: widget.property,
-                      ),
+
+              // Action 1: Inspection
+              _buildActionTile(
+                icon: LucideIcons.calendar,
+                title: 'Book Inspection',
+                subtitle: 'Schedule a visit at your convenience.',
+                price: 'FREE',
+                color: Colors.teal,
+                onTap: () async {
+                  Navigator.pop(sheetContext); // Close actions sheet
+                  // Show Date/Time Picker first
+                  final selectedDateTime = await showModalBottomSheet<DateTime>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) =>
+                        InspectionDatePicker(property: widget.property),
+                  );
+
+                  if (selectedDateTime != null && mounted) {
+                    // Save booking directly
+                    final booking = InspectionBooking(
+                      id: 'BK-${DateTime.now().millisecondsSinceEpoch}',
+                      property: widget.property,
+                      dateTime: selectedDateTime,
+                      status: BookingStatus.confirmed,
                     );
 
-                    if (selectedDateTime != null && mounted) {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EscrowPaymentScreen(
-                            propertyTitle: widget.property.title,
-                            location: widget.property.locationName,
-                            propertyImage: widget.property.imagesGallery.isNotEmpty ? widget.property.imagesGallery.first : widget.property.imageUrl,
-                            amount: 5000,
-                            dealType: 'Inspection Fee',
-                          ),
+                    Provider.of<BookingProvider>(
+                      context,
+                      listen: false,
+                    ).addBooking(booking);
+
+                    // Show a simple snackbar/toast for confirmation
+                    _showMockNotification(
+                      'Booking Confirmed!',
+                      'Agent ${widget.property.agentName} has been notified for ${booking.formattedDate} at ${booking.formattedTime}.',
+                    );
+
+                    // Route immediately to the management hub so the user can chat and track progress
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PropertyManagementScreen(
+                          commitment: UnifiedCommitment.fromBooking(booking),
+                          isAgent: false,
                         ),
-                      );
-                      
-                      if (!mounted) return;
-
-                      if (result == true) {
-                        // Save booking
-                        final booking = InspectionBooking(
-                          id: 'BK-${DateTime.now().millisecondsSinceEpoch}',
-                          property: widget.property,
-                          dateTime: selectedDateTime,
-                          status: BookingStatus.confirmed, // Payment confirms it
-                        );
-                        
-                        Provider.of<BookingProvider>(context, listen: false).addBooking(booking);
-                        
-                        setState(() {
-                          _inspectionPaid = true;
-                        });
-
-                        // Show a simple snackbar/toast for confirmation
-                        _showMockNotification(
-                          'Booking Confirmed!', 
-                          'Agent ${widget.property.agentName} has been notified for ${booking.formattedDate} at ${booking.formattedTime}.'
-                        );
-
-                        // Route immediately to the management hub so the user can chat and track progress
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PropertyManagementScreen(
-                              commitment: UnifiedCommitment.fromBooking(booking),
-                              isAgent: false,
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                ),
+                      ),
+                    );
+                  }
+                },
+              ),
 
               // Action 2: Direct Contact
               _buildActionTile(
                 icon: LucideIcons.userCheck,
-                title: 'Direct Landlord Contact',
-                subtitle: 'Bypass agents and save up to 10% on agency fees.',
-                price: '₦5,000',
-                color: Color(0xFF6C63FF),
+                title: 'Landlord Contact',
+                subtitle: 'Direct communication with the owner.',
+                price: 'FREE',
+                color: const Color(0xFF6C63FF),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _simulatePaymentFlow('Contact Unlocked', 'You now have direct access to the landlord. Check your messages.', 5000, () {
-                    if (!mounted) return;
-                    // Success logic
-                  });
+                  _showMockNotification(
+                    'Contact Access Unlocked',
+                    'You can now message the landlord directly in the Property Hub.',
+                  );
                 },
               ),
 
@@ -341,16 +286,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   icon: LucideIcons.scale,
                   title: 'Title Legal Search',
                   subtitle: 'Avoid land scams. Get a verified property report.',
-                  price: '₦15,000',
-                  color: Color(0xFFF7C948),
+                  price: 'FREE',
+                  color: const Color(0xFFF7C948),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _simulatePaymentFlow('Title Search Initiated', 'Our legal team will email the comprehensive property report within 48 hours.', 15000, () {
-                      // Success logic
-                    });
+                    _showMockNotification(
+                      'Search Initiated',
+                      'Our legal team will provide a property report for this listing.',
+                    );
                   },
                 ),
-                
+
               const SizedBox(height: 16),
             ],
           ),
@@ -359,7 +305,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildActionTile({required IconData icon, required String title, required String subtitle, required String price, required Color color, required VoidCallback onTap}) {
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String price,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
@@ -386,9 +339,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -399,7 +361,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 color: color,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(price, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              child: Text(
+                price,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ],
         ),
@@ -416,7 +385,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     if (!isMobile) {
       return _buildDesktopLayout(context, theme, p);
     }
-    
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -426,9 +395,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             leading: Padding(
               padding: const EdgeInsets.all(8.0),
               child: CircleAvatar(
-                backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                backgroundColor: theme.colorScheme.surface.withValues(
+                  alpha: 0.8,
+                ),
                 child: IconButton(
-                  icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: theme.colorScheme.onSurface,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -437,22 +411,26 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: CircleAvatar(
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.8,
+                  ),
                   child: Consumer<FavoritesProvider>(
                     builder: (context, favs, child) {
                       final isFav = favs.isFavorite(p.id);
                       return IconButton(
                         icon: Icon(
                           isFav ? Icons.favorite : Icons.favorite_border,
-                          color: isFav ? Colors.red : theme.colorScheme.onSurface,
+                          color: isFav
+                              ? Colors.red
+                              : theme.colorScheme.onSurface,
                         ),
                         onPressed: () {
                           favs.toggleFavorite(p);
                           // Sync with property provider for analytics demonstration
                           final currentCount = p.favoritesCount;
                           context.read<PropertyProvider>().updateFavoritesCount(
-                            p.id, 
-                            isFav ? currentCount - 1 : currentCount + 1
+                            p.id,
+                            isFav ? currentCount - 1 : currentCount + 1,
                           );
                         },
                       );
@@ -464,9 +442,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: CircleAvatar(
-                  backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+                  backgroundColor: theme.colorScheme.surface.withValues(
+                    alpha: 0.8,
+                  ),
                   child: IconButton(
-                    icon: Icon(LucideIcons.share, color: theme.colorScheme.onSurface),
+                    icon: Icon(
+                      LucideIcons.share,
+                      color: theme.colorScheme.onSurface,
+                    ),
                     onPressed: () {},
                   ),
                 ),
@@ -474,28 +457,55 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Consumer2<BookingProvider, UserPreferencesProvider>(
                 builder: (context, provider, userPrefs, child) {
                   final leads = provider.getBookingsForProperty(p.id);
-                  if (leads.isEmpty || !userPrefs.isAgent) return const SizedBox.shrink();
-                  
+                  if (leads.isEmpty || !userPrefs.isAgent) {
+                    return const SizedBox.shrink();
+                  }
+
                   return Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: GestureDetector(
                       onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (_) => InspectionManagementScreen(property: p)));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                InspectionManagementScreen(property: p),
+                          ),
+                        );
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.redAccent,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                         alignment: Alignment.center,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(LucideIcons.bellRing, color: Colors.white, size: 14),
+                            const Icon(
+                              LucideIcons.bellRing,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                             const SizedBox(width: 4),
-                            Text('${leads.length}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                            Text(
+                              '${leads.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -521,9 +531,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[200],
-                          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
-                        errorWidget: (context, url, error) => Container(color: Colors.grey),
+                        errorWidget: (context, url, error) =>
+                            Container(color: Colors.grey),
                       );
                       if (index == 0) {
                         return Hero(tag: p.id, child: child);
@@ -536,18 +549,24 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     bottom: 30,
                     right: 20,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '${_currentImageIndex + 1} / ${p.imagesGallery.length}',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                  
+
                   // 360 Virtual Tour Overlay
                   if (p.priceTerm == 'buy')
                     Positioned(
@@ -555,7 +574,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       right: 16,
                       child: InkWell(
                         onTap: () {
-                           Navigator.push(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => const VirtualWalkthroughScreen(),
@@ -563,20 +582,33 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(LucideIcons.scan, color: Colors.white, size: 16),
+                              Icon(
+                                LucideIcons.scan,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 '360° Tour',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -591,7 +623,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -613,9 +647,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
@@ -629,16 +667,28 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                   ),
                                   if (p.priceTerm == 'buy')
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.teal.withValues(alpha: 0.15),
+                                        color: Colors.teal.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.teal, width: 0.5),
+                                        border: Border.all(
+                                          color: Colors.teal,
+                                          width: 0.5,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(LucideIcons.home, color: Colors.teal, size: 13),
+                                          const Icon(
+                                            LucideIcons.home,
+                                            color: Colors.teal,
+                                            size: 13,
+                                          ),
                                           const SizedBox(width: 4),
                                           const Text(
                                             'FOR SALE',
@@ -653,16 +703,28 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                     ),
                                   if (p.isVerified)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(alpha: 0.2),
+                                        color: Colors.amber.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.amber, width: 0.5),
+                                        border: Border.all(
+                                          color: Colors.amber,
+                                          width: 0.5,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.verified, color: Colors.orange, size: 14),
+                                          const Icon(
+                                            Icons.verified,
+                                            color: Colors.orange,
+                                            size: 14,
+                                          ),
                                           const SizedBox(width: 4),
                                           Text(
                                             'VERIFIED',
@@ -680,14 +742,30 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               const SizedBox(height: 8),
                               Consumer<PropertyProvider>(
                                 builder: (context, provider, _) {
-                                  final sp = provider.getPropertyById(widget.property.id) ?? widget.property;
+                                  final sp =
+                                      provider.getPropertyById(
+                                        widget.property.id,
+                                      ) ??
+                                      widget.property;
                                   return Row(
                                     children: [
-                                      _buildMetricBadge(LucideIcons.eye, '${sp.viewsCount}', theme),
+                                      _buildMetricBadge(
+                                        LucideIcons.eye,
+                                        '${sp.viewsCount}',
+                                        theme,
+                                      ),
                                       const SizedBox(width: 8),
-                                      _buildMetricBadge(LucideIcons.heart, '${sp.favoritesCount}', theme),
+                                      _buildMetricBadge(
+                                        LucideIcons.heart,
+                                        '${sp.favoritesCount}',
+                                        theme,
+                                      ),
                                       const SizedBox(width: 8),
-                                      _buildMetricBadge(LucideIcons.playCircle, '${sp.videoViewsCount}', theme),
+                                      _buildMetricBadge(
+                                        LucideIcons.playCircle,
+                                        '${sp.videoViewsCount}',
+                                        theme,
+                                      ),
                                     ],
                                   );
                                 },
@@ -703,7 +781,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  Icon(LucideIcons.mapPin, size: 16, color: theme.colorScheme.primary),
+                                  Icon(
+                                    LucideIcons.mapPin,
+                                    size: 16,
+                                    color: theme.colorScheme.primary,
+                                  ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
@@ -726,14 +808,20 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                             Text(
                               p.formattedPrice,
                               style: TextStyle(
-                                color: p.priceTerm == 'buy' ? Colors.teal : theme.colorScheme.primary,
+                                color: p.priceTerm == 'buy'
+                                    ? Colors.teal
+                                    : theme.colorScheme.primary,
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             if (p.priceTerm.isNotEmpty && p.priceTerm != 'buy')
                               Text(
-                                'per ${p.priceTerm == 'mo' ? 'month' : p.priceTerm == 'wk' ? 'week' : p.priceTerm}',
+                                'per ${p.priceTerm == 'mo'
+                                    ? 'month'
+                                    : p.priceTerm == 'wk'
+                                    ? 'week'
+                                    : p.priceTerm}',
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 14,
@@ -753,40 +841,89 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Quick Stats
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildFeatureIcon(LucideIcons.bedDouble, '${p.beds} Beds', theme),
-                        _buildFeatureIcon(LucideIcons.bath, '${p.baths} Baths', theme),
-                        _buildFeatureIcon(LucideIcons.maximize, '1,200 sqft', theme),
+                        _buildFeatureIcon(
+                          LucideIcons.bedDouble,
+                          '${p.beds} Beds',
+                          theme,
+                        ),
+                        _buildFeatureIcon(
+                          LucideIcons.bath,
+                          '${p.baths} Baths',
+                          theme,
+                        ),
+                        _buildFeatureIcon(
+                          LucideIcons.maximize,
+                          p.totalSquareFootage != null ? '${p.totalSquareFootage!.toStringAsFixed(0)} sqft' : 'N/A',
+                          theme,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 32),
 
                     // Media Chips
-                    if (p.hasVideo || p.has360View || p.planImageUrl != null) ...[
+                    if (p.hasVideo ||
+                        p.has360View ||
+                        p.planImageUrl != null) ...[
                       const Text(
                         'Media & Plans',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          if (p.hasVideo && p.videoUrl != null) 
-                            _buildMediaChip(LucideIcons.video, 'Video Tour', Colors.red, theme, onTap: () {
-                              context.read<PropertyProvider>().incrementVideoViews(p.id);
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => VideoPlayerScreen(videoUrl: p.videoUrl!)));
-                            }),
-                          if (p.has360View && p.panoramaUrl != null) 
-                            _buildMediaChip(LucideIcons.rotateCcw, '360° View', Colors.blue, theme, onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const VirtualWalkthroughScreen()));
-                            }),
-                          if (p.planImageUrl != null) 
-                            _buildMediaChip(LucideIcons.map, 'Floor Plan', Colors.purple, theme),
+                          if (p.hasVideo && p.videoUrl != null)
+                            _buildMediaChip(
+                              LucideIcons.video,
+                              'Video Tour',
+                              Colors.red,
+                              theme,
+                              onTap: () {
+                                context
+                                    .read<PropertyProvider>()
+                                    .incrementVideoViews(p.id);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => VideoPlayerScreen(
+                                      videoUrl: p.videoUrl!,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          if (p.has360View && p.panoramaUrl != null)
+                            _buildMediaChip(
+                              LucideIcons.rotateCcw,
+                              '360° View',
+                              Colors.blue,
+                              theme,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const VirtualWalkthroughScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          if (p.planImageUrl != null)
+                            _buildMediaChip(
+                              LucideIcons.map,
+                              'Floor Plan',
+                              Colors.purple,
+                              theme,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 32),
@@ -795,7 +932,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     // Amenities Wrap
                     const Text(
                       'Amenities',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -803,12 +943,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       runSpacing: 8,
                       children: p.amenities.map((a) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+                            border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.2),
+                            ),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(a, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          child: Text(
+                            a,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         );
                       }).toList(),
                     ),
@@ -817,7 +968,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     // Overview
                     const Text(
                       'Overview',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -826,62 +980,121 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                     // Legal & Documents Section
+                    // Building Specs & Vital Signs
                     const Text(
-                      'Legal & Authenticity',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      'Structure & Vital Signs',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                        color: Colors.grey.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
+                        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildDetailRow(LucideIcons.calendar, 'Year Built', p.yearBuilt?.toString() ?? 'N/A'),
+                          _buildDetailRow(LucideIcons.construction, 'Foundation', p.foundationType ?? 'Standard'),
+                          _buildDetailRow(LucideIcons.waves, 'Flooding History', p.floodingHistory ? 'History Flagged' : 'None Reported', valueColor: p.floodingHistory ? Colors.red : Colors.green),
+                          const Divider(height: 24),
+                          _buildDetailRow(LucideIcons.zap, 'Avg. Electricity', '${p.electricitySupplyHours.toInt()} hrs/day'),
+                          _buildDetailRow(LucideIcons.map, 'Road Distance', '${p.proximityToRoadMeters} meters'),
+                          _buildDetailRow(LucideIcons.activity, 'Nearest Hospital', '${p.proximityToHospitalKm.toStringAsFixed(1)} km'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Legal & Documents Section
+                    const Text(
+                      'Legal & Authenticity',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.05,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (p.legalDocuments.isEmpty)
+                          if (p.legalDocuments.isEmpty && !p.hasCertificateOfOccupancy && !p.hasSurveyPlan)
                             _buildLegalItem(
-                              LucideIcons.fileQuestion, 
-                              'Standard Documentation', 
-                              'Being Verified', 
+                              LucideIcons.fileQuestion,
+                              'Standard Documentation',
+                              'Being Verified',
                               Colors.grey,
                             )
-                          else
-                            ...p.legalDocuments.map((doc) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: _buildLegalItem(
-                                doc.title.contains('Survey') ? LucideIcons.map : 
-                                doc.title.contains('Deed') ? LucideIcons.fileSignature : 
-                                LucideIcons.scrollText, 
-                                doc.title, 
-                                doc.isVerified ? 'Verified' : 'Pending',
-                                doc.isVerified ? Colors.green : Colors.orange,
+                          else ...[
+                            if (p.hasCertificateOfOccupancy)
+                              _buildLegalItem(LucideIcons.scrollText, 'Cert. of Occupancy', 'AVAILABLE', Colors.green),
+                            if (p.hasGovernorsConsent)
+                              _buildLegalItem(LucideIcons.fileCheck, 'Governor\'s Consent', 'AVAILABLE', Colors.green),
+                            if (p.hasSurveyPlan)
+                              _buildLegalItem(LucideIcons.map, 'Survey Plan', 'AVAILABLE', Colors.green),
+                            if (p.hasBuildingPlanApproval)
+                              _buildLegalItem(LucideIcons.building, 'Building Approval', 'AVAILABLE', Colors.green),
+                            
+                            ...p.legalDocuments.map(
+                              (doc) => Padding(
+                                padding: const EdgeInsets.only(top: 12.0),
+                                child: _buildLegalItem(
+                                  doc.title.contains('Survey')
+                                      ? LucideIcons.map
+                                      : doc.title.contains('Deed')
+                                      ? LucideIcons.fileSignature
+                                      : LucideIcons.scrollText,
+                                  doc.title,
+                                  doc.isVerified ? 'Verified' : 'Pending',
+                                  doc.isVerified ? Colors.green : Colors.orange,
+                                ),
                               ),
-                            )),
-                          
+                            ),
+                          ],
+
                           if (p.hasLawyerVerifiedTerms) ...[
                             const Divider(height: 24),
                             _buildLegalItem(
-                              LucideIcons.shieldCheck, 
-                              'Lawyer Verified Terms', 
-                              'AUTHENTIC', 
+                              LucideIcons.shieldCheck,
+                              'Lawyer Verified Terms',
+                              'AUTHENTIC',
                               Colors.teal,
                             ),
                           ],
-                          
+
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () => _showTermsModal(context, p),
                               icon: const Icon(LucideIcons.gavel, size: 16),
-                              label: const Text('Read Lawyer\'s Terms & Conditions'),
+                              label: const Text(
+                                'Read Lawyer\'s Terms & Conditions',
+                              ),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           ),
@@ -894,21 +1107,35 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                         color: theme.colorScheme.surface,
-                         borderRadius: BorderRadius.circular(16),
-                         boxShadow: [
-                           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))
-                         ],
-                         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Listed By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Text(
+                            'Listed By',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              if (p.listerType == ListerType.realEstateCompany && p.listerLogoUrl != null)
+                              if (p.listerType ==
+                                      ListerType.realEstateCompany &&
+                                  p.listerLogoUrl != null)
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: CachedNetworkImage(
@@ -921,8 +1148,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               else
                                 CircleAvatar(
                                   radius: 25,
-                                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
-                                  child: Icon(LucideIcons.user, color: theme.colorScheme.primary),
+                                  backgroundColor: theme.colorScheme.primary
+                                      .withValues(alpha: 0.2),
+                                  child: Icon(
+                                    LucideIcons.user,
+                                    color: theme.colorScheme.primary,
+                                  ),
                                 ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -933,61 +1164,66 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            _agentRevealed 
-                                                ? (p.listerType == ListerType.realEstateCompany ? (p.companyName ?? p.agentName) : p.agentName) 
-                                                : 'Details Hidden',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            (p.listerType ==
+                                                    ListerType.realEstateCompany
+                                                ? (p.companyName ?? p.agentName)
+                                                : p.agentName),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                        if (p.listerType == ListerType.realEstateCompany)
+                                        if (p.listerType ==
+                                            ListerType.realEstateCompany)
                                           Container(
-                                            margin: const EdgeInsets.only(left: 4),
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-                                            child: const Text('PREMIUM', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold)),
+                                            margin: const EdgeInsets.only(
+                                              left: 4,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber.withValues(
+                                                alpha: 0.2,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'PREMIUM',
+                                              style: TextStyle(
+                                                color: Colors.amber,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      _agentRevealed ? p.agentPhone : '*** *** ****',
-                                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                      p.agentPhone,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              if (_agentRevealed)
-                                IconButton(
-                                  icon: const Icon(LucideIcons.phone, color: Colors.green),
-                                  onPressed: () {},
-                                )
+                              IconButton(
+                                icon: const Icon(
+                                  LucideIcons.phone,
+                                  color: Colors.green,
+                                ),
+                                onPressed: () {},
+                              ),
                             ],
                           ),
-                          if (!_agentRevealed) ...[
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(LucideIcons.unlock, size: 18),
-                                label: const Text('Reveal Agent (₦100)'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  foregroundColor: theme.colorScheme.primary,
-                                  side: BorderSide(color: theme.colorScheme.primary),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () {
-                                  _simulatePaymentFlow('Agent Unlock', 'Agent contact details are now visible.', 100, () {
-                                    setState(() {
-                                      _agentRevealed = true;
-                                    });
-                                  });
-                                },
-                              ),
-                            )
-                          ]
                         ],
                       ),
                     ),
@@ -996,10 +1232,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     // ── HOW TO OWN: only for 'buy' listings ─────────────────
                     if (p.priceTerm == 'buy') ...[
                       const SizedBox(height: 32),
-                      HomeOwnershipOptionsWidget(
-                        property: p,
-                        onSimulatePayment: _simulatePaymentFlow,
-                      ),
+                      HomeOwnershipOptionsWidget(property: p),
                     ],
                     const SizedBox(height: 24),
 
@@ -1008,85 +1241,86 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       padding: const EdgeInsets.all(20),
                       margin: const EdgeInsets.only(top: 24),
                       decoration: BoxDecoration(
-                         color: theme.colorScheme.surface,
-                         borderRadius: BorderRadius.circular(16),
-                         boxShadow: [
-                           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))
-                         ],
-                         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Live 3D Map & Transport', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Text(
+                            'Live 3D Map & Transport',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                           const SizedBox(height: 16),
-                          if (!_inspectionPaid) ...[
-                            Container(
-                              height: 120,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(12),
-                                // Using a placeholder static map to signify hidden precise location
-                                image: const DecorationImage(
-                                  image: CachedNetworkImageProvider('https://maps.googleapis.com/maps/api/staticmap?center=9.0,7.0&zoom=10&size=600x300&maptype=roadmap'),
-                                  fit: BoxFit.cover,
-                                  colorFilter: ColorFilter.mode(Colors.grey, BlendMode.saturation),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(LucideIcons.map, size: 18),
+                              label: const Text('Open in Google Maps (3D)'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                foregroundColor: Colors.blue[700],
+                                side: BorderSide(color: Colors.blue[700]!),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
-                                  child: const Text('Exact Map unlocked after booking', style: TextStyle(color: Colors.white, fontSize: 12)),
-                                ),
-                              ),
+                              onPressed: () {
+                                _openLocationInGoogleMaps(
+                                  p.location.latitude,
+                                  p.location.longitude,
+                                );
+                              },
                             ),
-                          ] else ...[
-                            // Unlocked state
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(LucideIcons.map, size: 18),
-                                label: const Text('Open in Google Maps (3D)'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  foregroundColor: Colors.blue[700],
-                                  side: BorderSide(color: Colors.blue[700]!),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () {
-                                  _openLocationInGoogleMaps(p.location.latitude, p.location.longitude);
-                                },
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(LucideIcons.share2, size: 18),
+                              label: const Text(
+                                'Share to Uber, Bolt, WhatsApp...',
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(LucideIcons.share2, size: 18),
-                                label: const Text('Share to Uber, Bolt, WhatsApp...'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.colorScheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
                                 ),
-                                onPressed: () async {
-                                  try {
-                                    await SharePlus.instance.share(
-                                      ShareParams(
-                                        text: 'Check out this property: ${p.title}\n${p.locationName}\n\nDownload SwiftSpace to view more!',
-                                        subject: 'SwiftSpace Property Share',
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    debugPrint('Error sharing: $e');
-                                  }
-                                },
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
+                              onPressed: () async {
+                                try {
+                                  await SharePlus.instance.share(
+                                    ShareParams(
+                                      text:
+                                          'Check out this property: ${p.title}\n${p.locationName}\n\nDownload SwiftSpace to view more!',
+                                      subject: 'SwiftSpace Property Share',
+                                    ),
+                                  );
+                                } catch (e) {
+                                  debugPrint('Error sharing: $e');
+                                }
+                              },
                             ),
-                          ]
+                          ),
                         ],
                       ),
                     ),
@@ -1112,23 +1346,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         ),
         child: Row(
           children: [
-             // Contact / Message stub button
+            // Contact / Message stub button
             Container(
               decoration: BoxDecoration(
-                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
-                borderRadius: BorderRadius.circular(16)
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.2),
+                ),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: IconButton(
                 icon: const Icon(LucideIcons.messageSquare),
                 onPressed: () {
-                  final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                  final chatProvider = Provider.of<ChatProvider>(
+                    context,
+                    listen: false,
+                  );
                   chatProvider.createRoom(
                     widget.property.id,
                     widget.property.title,
-                    widget.property.imagesGallery.isNotEmpty ? widget.property.imagesGallery.first : widget.property.imageUrl,
+                    widget.property.imagesGallery.isNotEmpty
+                        ? widget.property.imagesGallery.first
+                        : widget.property.imageUrl,
                     widget.property.agentName,
                   );
-                  final room = chatProvider.getRoomByProperty(widget.property.id);
+                  final room = chatProvider.getRoomByProperty(
+                    widget.property.id,
+                  );
                   if (room != null) {
                     Navigator.push(
                       context,
@@ -1138,52 +1381,47 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     );
                   }
                 },
-              )
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _inspectionPaid
-                  ? ElevatedButton.icon(
-                      onPressed: () {
-                         final bookings = Provider.of<BookingProvider>(context, listen: false).getBookingsForProperty(widget.property.id);
-                         if (bookings.isNotEmpty) {
-                           Navigator.push(
-                             context,
-                             MaterialPageRoute(
-                               builder: (_) => PropertyManagementScreen(
-                                 commitment: UnifiedCommitment.fromBooking(bookings.first),
-                                 isAgent: false,
-                               ),
-                             ),
-                           );
-                         }
-                      },
-                      icon: const Icon(LucideIcons.arrowRightCircle, size: 18),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final bookings = Provider.of<BookingProvider>(
+                    context,
+                    listen: false,
+                  ).getBookingsForProperty(widget.property.id);
+                  if (bookings.isNotEmpty) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PropertyManagementScreen(
+                          commitment: UnifiedCommitment.fromBooking(
+                            bookings.first,
+                          ),
+                          isAgent: false,
                         ),
-                        elevation: 0,
                       ),
-                      label: const Text('Manage Inspection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    )
-                  : ElevatedButton.icon(
-                      onPressed: _showPremiumActions,
-                      icon: const Icon(LucideIcons.zap, size: 18),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      label: const Text('Take Action', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ),
+                    );
+                  } else {
+                    _showPremiumActions();
+                  }
+                },
+                icon: const Icon(LucideIcons.zap, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                label: const Text(
+                  'Take Action',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
           ],
         ),
@@ -1193,10 +1431,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOutBack,
         builder: (context, value, child) {
-          return Transform.scale(
-            scale: value,
-            child: child,
-          );
+          return Transform.scale(scale: value, child: child);
         },
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1207,13 +1442,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               transitionBuilder: (child, anim) => FadeTransition(
                 opacity: anim,
                 child: SlideTransition(
-                  position: Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(anim),
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.5),
+                    end: Offset.zero,
+                  ).animate(anim),
                   child: child,
                 ),
               ),
               child: Container(
                 key: ValueKey(_currentTooltipIndex),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.8),
@@ -1221,14 +1462,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 ),
                 child: Text(
                   _tooltipPhrases[_currentTooltipIndex],
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
             FloatingActionButton(
               heroTag: 'map_fab_${p.id}',
               onPressed: () {
-                final pPrefs = Provider.of<UserPreferencesProvider>(context, listen: false);
+                final pPrefs = Provider.of<UserPreferencesProvider>(
+                  context,
+                  listen: false,
+                );
                 pPrefs.setMapFocusProperty(p.id);
                 pPrefs.setTabIndex(0); // Go to Explore
                 Navigator.popUntil(context, (route) => route.isFirst);
@@ -1243,20 +1491,58 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildLegalItem(IconData icon, String title, String status, Color color) {
+  Widget _buildDetailRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          const Spacer(),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: valueColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalItem(
+    IconData icon,
+    String title,
+    String status,
+    Color color,
+  ) {
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, color: color, size: 16),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+        ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            status,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ],
     );
@@ -1271,15 +1557,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       vaultModeText = '100% Verified. All legal documents are authenticated.';
       vaultColor = Colors.green;
       vaultIcon = LucideIcons.shieldCheck;
-    } else if (p.verificationStatus == PropertyVerificationStatus.pendingReview) {
+    } else if (p.verificationStatus ==
+        PropertyVerificationStatus.pendingReview) {
       vaultModeText = 'Documents under review by Admin.';
       vaultColor = Colors.orange;
       vaultIcon = LucideIcons.clock;
-    } else if (p.verificationStatus == PropertyVerificationStatus.issuesFlagged) {
+    } else if (p.verificationStatus ==
+        PropertyVerificationStatus.issuesFlagged) {
       vaultModeText = 'Discrepancies found during verification.';
       vaultColor = Colors.red;
       vaultIcon = LucideIcons.alertTriangle;
-    } else if (p.verificationStatus == PropertyVerificationStatus.fraudBlocked) {
+    } else if (p.verificationStatus ==
+        PropertyVerificationStatus.fraudBlocked) {
       vaultModeText = 'Caution: Action paused on this property.';
       vaultColor = Colors.black;
       vaultIcon = LucideIcons.ban;
@@ -1292,7 +1581,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
         ],
         border: Border.all(color: vaultColor.withValues(alpha: 0.3)),
       ),
@@ -1303,7 +1596,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             children: [
               Icon(LucideIcons.fileKey2, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              const Text('Due Diligence Vault', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text(
+                'Due Diligence Vault',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1321,7 +1617,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 Expanded(
                   child: Text(
                     vaultModeText,
-                    style: TextStyle(color: vaultColor, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(
+                      color: vaultColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -1329,12 +1629,26 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           ),
           const SizedBox(height: 16),
           if (p.legalDocuments.isNotEmpty) ...[
-            const Text('Documents:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const Text(
+              'Documents:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             const SizedBox(height: 8),
-            ...p.legalDocuments.map((doc) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: _buildLegalItem(LucideIcons.fileText, doc.title, doc.status.name.toUpperCase(), doc.status == LegalDocumentStatus.verified ? Colors.green : (doc.status == LegalDocumentStatus.rejected ? Colors.red : Colors.grey)),
-            )),
+            ...p.legalDocuments.map(
+              (doc) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _buildLegalItem(
+                  LucideIcons.fileText,
+                  doc.title,
+                  doc.status.name.toUpperCase(),
+                  doc.status == LegalDocumentStatus.verified
+                      ? Colors.green
+                      : (doc.status == LegalDocumentStatus.rejected
+                            ? Colors.red
+                            : Colors.grey),
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: 16),
           SizedBox(
@@ -1344,25 +1658,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               label: const Text('Request Clarification'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () {
-                final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                final chatProvider = Provider.of<ChatProvider>(
+                  context,
+                  listen: false,
+                );
                 chatProvider.createRoom(
                   p.id,
                   p.title,
-                  p.imagesGallery.isNotEmpty ? p.imagesGallery.first : p.imageUrl,
+                  p.imagesGallery.isNotEmpty
+                      ? p.imagesGallery.first
+                      : p.imageUrl,
                   p.agentName,
                 );
                 final room = chatProvider.getRoomByProperty(p.id);
                 if (room != null) {
                   // Can Optionally add a message to chat room here
                   chatProvider.sendMessage(
-                    room.id, 
-                    "Hi, I'd like to request clarity on some legal documents for this property.", 
-                    'user'
+                    room.id,
+                    "Hi, I'd like to request clarity on some legal documents for this property.",
+                    'user',
                   );
-                  
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1371,7 +1692,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   );
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Message attached. Proceeding to chat...'))
+                  const SnackBar(
+                    content: Text('Message attached. Proceeding to chat...'),
+                  ),
                 );
               },
             ),
@@ -1395,27 +1718,53 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 children: [
-                   Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(color: Colors.teal.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                     child: const Icon(LucideIcons.gavel, color: Colors.teal, size: 24),
-                   ),
-                   const SizedBox(width: 16),
-                   Expanded(
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                         const Text('Terms & Conditions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                         Text('Property: ${p.title}', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                       ],
-                     ),
-                   ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      LucideIcons.gavel,
+                      color: Colors.teal,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Terms & Conditions',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Property: ${p.title}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1432,16 +1781,25 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       decoration: BoxDecoration(
                         color: Colors.blue.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.info, color: Colors.blue, size: 18),
+                          const Icon(
+                            LucideIcons.info,
+                            color: Colors.blue,
+                            size: 18,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'These terms were provided by the agent\'s legal representative and verified by SwiftSpace.',
-                              style: TextStyle(color: Colors.blue[900], fontSize: 13),
+                              style: TextStyle(
+                                color: Colors.blue[900],
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ],
@@ -1449,32 +1807,58 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      p.termsAndConditions ?? 'Standard rental and purchase terms apply. Please contact the agent for detailed legal documentation.',
-                      style: const TextStyle(fontSize: 15, height: 1.7, letterSpacing: 0.2),
+                      p.termsAndConditions ??
+                          'Standard rental and purchase terms apply. Please contact the agent for detailed legal documentation.',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.7,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                     const SizedBox(height: 40),
                     Container(
-                       padding: const EdgeInsets.all(20),
-                       decoration: BoxDecoration(
-                         gradient: LinearGradient(colors: [Colors.teal[700]!, Colors.teal[900]!], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                         borderRadius: BorderRadius.circular(16),
-                       ),
-                       child: const Row(
-                         children: [
-                           Icon(LucideIcons.shieldCheck, color: Colors.white, size: 32),
-                           SizedBox(width: 16),
-                           Expanded(
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
-                               children: [
-                                 Text('Authenticity Guaranteed', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                                 SizedBox(height: 4),
-                                 Text('SwiftSpace verifies that this document matches the property title.', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                               ],
-                             ),
-                           ),
-                         ],
-                       ),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.teal[700]!, Colors.teal[900]!],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            LucideIcons.shieldCheck,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Authenticity Guaranteed',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'SwiftSpace verifies that this document matches the property title.',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -1491,9 +1875,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'I Understand',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
             ),
@@ -1515,15 +1904,18 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           child: Icon(icon, color: theme.colorScheme.primary, size: 24),
         ),
         const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       ],
     );
   }
 
-  Widget _buildMediaChip(IconData icon, String label, Color color, ThemeData theme, {VoidCallback? onTap}) {
+  Widget _buildMediaChip(
+    IconData icon,
+    String label,
+    Color color,
+    ThemeData theme, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1537,21 +1929,35 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           children: [
             Icon(icon, color: color, size: 18),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context, ThemeData theme, Property p) {
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    ThemeData theme,
+    Property p,
+  ) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(
+          p.title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         actions: [
           _buildDesktopFavoriteButton(p),
           const SizedBox(width: 8),
@@ -1614,8 +2020,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             favs.toggleFavorite(p);
             final currentCount = p.favoritesCount;
             context.read<PropertyProvider>().updateFavoritesCount(
-              p.id, 
-              isFav ? currentCount - 1 : currentCount + 1
+              p.id,
+              isFav ? currentCount - 1 : currentCount + 1,
             );
           },
         );
@@ -1624,10 +2030,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildDesktopShareButton() {
-     return IconButton(
-       icon: const Icon(LucideIcons.share2),
-       onPressed: () {},
-     );
+    return IconButton(icon: const Icon(LucideIcons.share2), onPressed: () {});
   }
 
   Widget _buildDesktopGallery(Property p) {
@@ -1666,7 +2069,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               ),
               child: Text(
                 '${_currentImageIndex + 1} / ${p.imagesGallery.length}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -1679,23 +2085,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Description', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Description',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 16),
         Text(
           p.description,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontSize: 16,
-            height: 1.8,
-          ),
+          style: TextStyle(color: Colors.grey[700], fontSize: 16, height: 1.8),
         ),
         const SizedBox(height: 40),
         const Divider(),
         const SizedBox(height: 40),
-        HomeOwnershipOptionsWidget(
-          property: p,
-          onSimulatePayment: _simulatePaymentFlow,
-        ),
+        HomeOwnershipOptionsWidget(property: p),
       ],
     );
   }
@@ -1731,7 +2133,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             children: [
               Icon(LucideIcons.mapPin, size: 16, color: Colors.grey[600]),
               const SizedBox(width: 8),
-              Text(p.locationName, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+              Text(
+                p.locationName,
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -1770,14 +2175,23 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Swift Space Verified Agent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text('Real Estate Specialist', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                const Text(
+                  'Swift Space Verified Agent',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  'Real Estate Specialist',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
               ],
             ),
           ),
           IconButton(
             onPressed: () {},
-            icon: Icon(LucideIcons.messageCircle, color: theme.colorScheme.primary),
+            icon: Icon(
+              LucideIcons.messageCircle,
+              color: theme.colorScheme.primary,
+            ),
           ),
         ],
       ),
@@ -1788,7 +2202,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Location', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Location',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 16),
         Container(
           height: 400,
@@ -1806,14 +2223,22 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               ),
               Center(
                 child: ElevatedButton.icon(
-                  onPressed: () => _openLocationInGoogleMaps(p.location.latitude, p.location.longitude),
+                  onPressed: () => _openLocationInGoogleMaps(
+                    p.location.latitude,
+                    p.location.longitude,
+                  ),
                   icon: const Icon(LucideIcons.map),
                   label: const Text('Open in Google Maps'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ),
@@ -1827,40 +2252,26 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   Widget _buildDesktopCTAs(ThemeData theme, Property p) {
     return Column(
       children: [
-        if (!_inspectionPaid)
-          SizedBox(
-            width: double.infinity,
-            height: 64,
-            child: ElevatedButton.icon(
-              icon: const Icon(LucideIcons.shieldCheck),
-              onPressed: _showPremiumActions,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                elevation: 0,
+        SizedBox(
+          width: double.infinity,
+          height: 64,
+          child: ElevatedButton.icon(
+            icon: const Icon(LucideIcons.messageSquare),
+            onPressed: _showPremiumActions,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
               ),
-              label: const Text('Access Premium Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              elevation: 0,
             ),
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            height: 64,
-            child: ElevatedButton.icon(
-              icon: const Icon(LucideIcons.layoutDashboard),
-              onPressed: () {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => const PropertyHubScreen()));
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                elevation: 0,
-              ),
-              label: const Text('Manage in Hub', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Contact & Inspection',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
+        ),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -1873,12 +2284,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.primary,
               side: BorderSide(color: theme.colorScheme.primary, width: 2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
             ),
             label: Consumer<FavoritesProvider>(
               builder: (context, favs, _) => Text(
-                favs.isFavorite(p.id) ? 'Remove from Favorites' : 'Add to Favorites',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                favs.isFavorite(p.id)
+                    ? 'Remove from Favorites'
+                    : 'Add to Favorites',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -1886,7 +2304,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       ],
     );
   }
-
 }
 
 // ╔══════════════════════════════════════════════════════════════╗
@@ -1894,8 +2311,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 // ╚══════════════════════════════════════════════════════════════╝
 class HomeOwnershipOptionsWidget extends StatefulWidget {
   final Property property;
-  final void Function(String, String, int, VoidCallback)? onSimulatePayment;
-  const HomeOwnershipOptionsWidget({super.key, required this.property, this.onSimulatePayment});
+  const HomeOwnershipOptionsWidget({super.key, required this.property});
 
   @override
   State<HomeOwnershipOptionsWidget> createState() =>
@@ -2078,9 +2494,11 @@ class _HomeOwnershipOptionsWidgetState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final bool isBuy = widget.property.priceTerm == 'buy';
-    final List<_OwnershipOption> currentOptions = isBuy ? _options : _rentOptions;
+    final List<_OwnershipOption> currentOptions = isBuy
+        ? _options
+        : _rentOptions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2105,15 +2523,14 @@ class _HomeOwnershipOptionsWidgetState
                 children: [
                   Text(
                     isBuy ? 'How to Own This Home' : 'How to Rent This Home',
-                    style:
-                        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     'Pick the pathway that fits your pocket',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),
@@ -2136,8 +2553,11 @@ class _HomeOwnershipOptionsWidgetState
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(LucideIcons.calculator,
-                    size: 14, color: Color(0xFF1EB476)),
+                const Icon(
+                  LucideIcons.calculator,
+                  size: 14,
+                  color: Color(0xFF1EB476),
+                ),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -2181,7 +2601,7 @@ class _HomeOwnershipOptionsWidgetState
                         color: opt.color.withValues(alpha: 0.12),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
-                      )
+                      ),
                     ]
                   : [],
             ),
@@ -2189,8 +2609,7 @@ class _HomeOwnershipOptionsWidgetState
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () =>
-                    setState(() => _selected = isExpanded ? -1 : i),
+                onTap: () => setState(() => _selected = isExpanded ? -1 : i),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -2228,10 +2647,13 @@ class _HomeOwnershipOptionsWidgetState
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: opt.badgeColor
-                                            .withValues(alpha: 0.12),
+                                        color: opt.badgeColor.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -2272,77 +2694,73 @@ class _HomeOwnershipOptionsWidgetState
                       if (isExpanded) ...[
                         const SizedBox(height: 14),
                         Divider(
-                            color: opt.color.withValues(alpha: 0.2), height: 1),
+                          color: opt.color.withValues(alpha: 0.2),
+                          height: 1,
+                        ),
                         const SizedBox(height: 14),
                         Text(
                           opt.summary,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            height: 1.55,
-                          ),
+                          style: const TextStyle(fontSize: 13.5, height: 1.55),
                         ),
                         const SizedBox(height: 14),
                         // Steps
-                        ...opt.steps.map((step) => Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    margin: const EdgeInsets.only(
-                                        top: 5, right: 8),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: opt.color,
+                        ...opt.steps.map(
+                          (step) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(
+                                    top: 5,
+                                    right: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: opt.color,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    step,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
                                     ),
                                   ),
-                                  Expanded(
-                                    child: Text(
-                                      step,
-                                      style: const TextStyle(
-                                          fontSize: 13, height: 1.4),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () {
                               if (opt.ctaUrl != null) {
-                                launchUrl(Uri.parse(opt.ctaUrl!),
-                                    mode: LaunchMode.externalApplication);
+                                launchUrl(
+                                  Uri.parse(opt.ctaUrl!),
+                                  mode: LaunchMode.externalApplication,
+                                );
                               } else {
-                                if (widget.onSimulatePayment != null) {
-                                  widget.onSimulatePayment!(
-                                    '${opt.label} Application',
-                                    'Your application fee was paid successfully. An agent will contact you shortly.',
-                                    1500, // Monetization logic filter fee
-                                    () {},
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          '${opt.label} request sent to agent!'),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: opt.color,
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${opt.label} request sent to agent!',
                                     ),
-                                  );
-                                }
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: opt.color,
+                                  ),
+                                );
                               }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: opt.color,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -2351,7 +2769,9 @@ class _HomeOwnershipOptionsWidgetState
                             child: Text(
                               opt.cta,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ),
@@ -2366,7 +2786,6 @@ class _HomeOwnershipOptionsWidgetState
       ],
     );
   }
-
 
   String _formatMonthly(double price) {
     // Simple EMI estimate: P * r*(1+r)^n / ((1+r)^n - 1)  at 8% p.a. / 25 yr
@@ -2405,4 +2824,3 @@ class _OwnershipOption {
     required this.ctaUrl,
   });
 }
-

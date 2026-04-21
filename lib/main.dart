@@ -22,6 +22,9 @@ import 'package:swiftspace/features/auth/presentation/state/admin_provider.dart'
 import 'package:swiftspace/features/savings/presentation/state/savings_provider.dart';
 import 'package:swiftspace/features/savings/presentation/pages/savings_screen.dart';
 import 'package:swiftspace/core/utils/responsive.dart';
+import 'package:swiftspace/features/chat/presentation/state/notification_provider.dart';
+import 'package:swiftspace/features/chat/domain/entities/notification.dart';
+import 'package:swiftspace/core/presentation/widgets/common/badge_icon.dart';
 
 
 import 'package:swiftspace/core/services/supabase_service.dart';
@@ -79,6 +82,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => UserPreferencesProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => PropertyProvider()),
         ChangeNotifierProvider(create: (_) => NegotiationProvider()),
         ChangeNotifierProvider(create: (_) => SavingsProvider()),
@@ -167,6 +171,46 @@ class _MainLayoutState extends State<MainLayout> {
     final isMobile = Responsive.isMobile(context);
     
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          AppConstants.appName,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
+            letterSpacing: -1,
+            color: colorScheme.primary,
+          ),
+        ),
+        backgroundColor: colorScheme.surface,
+        elevation: 0,
+        actions: [
+          Consumer2<ChatProvider, NotificationProvider>(
+            builder: (context, chat, note, child) {
+              return Row(
+                children: [
+                  BadgeIcon(
+                    icon: LucideIcons.messageSquare,
+                    count: chat.totalUnreadCount,
+                    onPressed: () {
+                      // Navigate to chat/hub or show popup
+                      prefs.setTabIndex(2); // Goes to Property Hub (Index 2)
+                    },
+                  ),
+                  BadgeIcon(
+                    icon: LucideIcons.bell,
+                    count: note.unreadCount,
+                    onPressed: () {
+                      // Show notification sheet or navigate
+                      _showNotificationSheet(context);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
       body: Row(
         children: [
           if (!isMobile)
@@ -252,5 +296,104 @@ class _MainLayoutState extends State<MainLayout> {
           )
         : null,
     );
+  }
+
+  void _showNotificationSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Consumer<NotificationProvider>(
+          builder: (context, provider, child) {
+            final notes = provider.notifications;
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Notifications',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        TextButton(
+                          onPressed: provider.markAllAsRead,
+                          child: const Text('Mark all as read'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                  if (notes.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('No new notifications'),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: notes.length,
+                        itemBuilder: (context, index) {
+                          final n = notes[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getNoteColor(n.type).withValues(alpha: 0.1),
+                              child: Icon(_getNoteIcon(n.type), color: _getNoteColor(n.type), size: 20),
+                            ),
+                            title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
+                            subtitle: Text(n.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            trailing: Text(
+                              _formatTime(n.timestamp),
+                              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                            ),
+                            onTap: () => provider.markAsRead(n.id),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  IconData _getNoteIcon(NotificationType type) {
+    switch (type) {
+      case NotificationType.inspection: return LucideIcons.calendar;
+      case NotificationType.offer: return LucideIcons.landmark;
+      case NotificationType.chat: return LucideIcons.messageSquare;
+      case NotificationType.match: return LucideIcons.home;
+      case NotificationType.system: return LucideIcons.info;
+      default: return LucideIcons.bell;
+    }
+  }
+
+  Color _getNoteColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.inspection: return Colors.blue;
+      case NotificationType.offer: return Colors.green;
+      case NotificationType.chat: return Colors.orange;
+      case NotificationType.match: return Colors.purple;
+      case NotificationType.system: return Colors.grey;
+      default: return Colors.grey;
+    }
+  }
+
+  String _formatTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }

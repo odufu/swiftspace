@@ -7,7 +7,6 @@ import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/booking/presentation/state/booking_provider.dart';
 import 'package:swiftspace/features/booking/domain/entities/booking.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/chat/presentation/pages/chat_list_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/core/utils/responsive.dart';
@@ -42,7 +41,6 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final escrowTx = MockEscrowStore().transactions;
     final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
@@ -86,8 +84,8 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildActiveTab(escrowTx, isDark, theme),
-              _buildHistoryTab(escrowTx, isDark, theme),
+              _buildActiveTab(isDark, theme),
+              _buildHistoryTab(isDark, theme),
             ],
           ),
         ),
@@ -95,14 +93,12 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
     );
   }
 
-  Widget _buildActiveTab(List<EscrowTransaction> escrowTx, bool isDark, ThemeData theme) {
+  Widget _buildActiveTab(bool isDark, ThemeData theme) {
     final bookings = Provider.of<BookingProvider>(context).bookings;
     final activeBookings = bookings.where((b) => b.status != BookingStatus.completed && b.status != BookingStatus.cancelled).toList();
-    final activeEscrow = escrowTx.where((tx) => tx.state != EscrowState.released && tx.state != EscrowState.refunded).toList();
 
     final List<UnifiedCommitment> commitments = [
       ...activeBookings.map((b) => UnifiedCommitment.fromBooking(b)),
-      ...activeEscrow.map((tx) => UnifiedCommitment.fromEscrow(tx)),
     ];
 
     if (commitments.isEmpty) return _buildEmptyState(theme, icon: LucideIcons.layoutDashboard, message: 'Your property journey starts here.\nEverything you commit to will appear in this hub.');
@@ -123,14 +119,12 @@ class _PropertyHubScreenState extends State<PropertyHubScreen> with SingleTicker
     );
   }
 
-  Widget _buildHistoryTab(List<EscrowTransaction> escrowTx, bool isDark, ThemeData theme) {
+  Widget _buildHistoryTab(bool isDark, ThemeData theme) {
     final bookings = Provider.of<BookingProvider>(context).bookings;
     final pastBookings = bookings.where((b) => b.status == BookingStatus.completed || b.status == BookingStatus.cancelled).toList();
-    final closedEscrow = escrowTx.where((tx) => tx.state == EscrowState.released || tx.state == EscrowState.refunded).toList();
 
     final List<UnifiedCommitment> history = [
       ...pastBookings.map((b) => UnifiedCommitment.fromBooking(b)),
-      ...closedEscrow.map((tx) => UnifiedCommitment.fromEscrow(tx)),
     ];
 
     if (history.isEmpty) return _buildEmptyState(theme, icon: LucideIcons.history, message: 'No closed deals or past visits yet.');

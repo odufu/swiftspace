@@ -1,6 +1,4 @@
-import 'package:latlong2/latlong.dart';
 import 'booking.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 
 enum CommitmentType { inspection, deal }
@@ -15,7 +13,7 @@ class UnifiedCommitment {
   final String id;
   final Property property;
   final CommitmentType type;
-  final dynamic originalObject; // InspectionBooking or EscrowTransaction
+  final dynamic originalObject; // Custom data object (e.g. Booking)
   final String statusLabel;
   final String nextActionLabel;
   final double progress;
@@ -53,59 +51,6 @@ class UnifiedCommitment {
     );
   }
 
-  static UnifiedCommitment fromEscrow(EscrowTransaction tx) {
-    final property = Property(
-      id: tx.id,
-      title: tx.propertyTitle,
-      location: const LatLng(9.1538, 7.3220), // Abuja center mock
-      locationName: tx.location,
-      price: tx.amount,
-      priceTerm: 'buy',
-      formattedPrice: '${tx.currency}${tx.amount.toStringAsFixed(0)}',
-      imageUrl: tx.propertyImage,
-      listerName: tx.agentName,
-      listerType: ListerType.agent,
-      description: 'Secured via Swift Space Escrow.',
-      imagesGallery: [tx.propertyImage],
-      type: PropertyType.detachedDuplex,
-      beds: 4,
-      baths: 4,
-      has360View: true,
-      hasVideo: true,
-      amenities: ['Escrow Protected', 'Verified'],
-      agentPhone: '+234 000 000 000',
-      isVerified: true,
-      proximityToRoadMeters: 50,
-      electricitySupplyHours: 24,
-      hasRunningWater: true,
-      proximityToHospitalKm: 2.0,
-      videoUrl: 'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-    );
-
-    // Mock due date for rentals or installment payments
-    final DateTime? mockDueDate = tx.state == EscrowState.overdue 
-        ? DateTime.now().subtract(const Duration(days: 2)) 
-        : DateTime.now().add(const Duration(days: 15));
-
-    return UnifiedCommitment(
-      id: tx.id,
-      property: property,
-      type: CommitmentType.deal,
-      originalObject: tx,
-      statusLabel: _getEscrowStatusLabel(tx.state),
-      nextActionLabel: _getEscrowNextAction(tx.state),
-      progress: tx.state == EscrowState.released ? 1.0 : 0.6,
-      dueDate: mockDueDate,
-      checklist: [
-        ChecklistItem(label: 'Price Agreement', isDone: true),
-        ChecklistItem(label: 'Escrow Account Setup', isDone: true),
-        ChecklistItem(label: 'Initial Deposit Received', isDone: tx.state != EscrowState.awaitingPayment),
-        ChecklistItem(label: 'Legal Document Verification', isDone: tx.state == EscrowState.released || tx.state == EscrowState.inspectionPassed),
-        ChecklistItem(label: 'Final Balance Settle', isDone: tx.state == EscrowState.released),
-      ],
-    );
-  }
-
   static String _getBookingStatusLabel(BookingStatus status) {
     switch (status) {
       case BookingStatus.pending: return 'Pending Review';
@@ -139,26 +84,6 @@ class UnifiedCommitment {
       case BookingStatus.finalized: return 0.8;
       case BookingStatus.completed: return 0.7; // Negotiation
       default: return 0.1;
-    }
-  }
-
-  static String _getEscrowStatusLabel(EscrowState state) {
-    switch (state) {
-      case EscrowState.awaitingPayment: return 'Payment Pending';
-      case EscrowState.held: return 'Funds Secured';
-      case EscrowState.inspectionPassed: return 'Ready for Finalize';
-      case EscrowState.released: return 'Deal Closed';
-      case EscrowState.refunded: return 'Refunded';
-      case EscrowState.overdue: return 'Action Required!';
-    }
-  }
-
-  static String _getEscrowNextAction(EscrowState state) {
-    switch (state) {
-      case EscrowState.overdue: return 'Settle Payment';
-      case EscrowState.inspectionPassed: return 'Proceed with Final Step';
-      case EscrowState.released: return 'Transfer Ownership';
-      default: return 'Track Milestones';
     }
   }
 }

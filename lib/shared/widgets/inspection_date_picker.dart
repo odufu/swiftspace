@@ -187,7 +187,7 @@ class _InspectionDatePickerState extends State<InspectionDatePicker> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                    Text('Proceed to Payment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                   Text('Secured by Swift Space Escrow · ₦5,000', style: TextStyle(fontSize: 10, fontWeight: FontWeight.normal, color: Colors.white70)),
+                   Text('Free Professional Property Visit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.normal, color: Colors.white70)),
                 ],
               ),
               style: ElevatedButton.styleFrom(

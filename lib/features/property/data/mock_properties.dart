@@ -604,11 +604,22 @@ List<Property> _generateMockData() {
           electricitySupplyHours: 4.0 + random.nextInt(20).toDouble(),
           hasRunningWater: random.nextBool(),
           proximityToHospitalKm: 0.5 + random.nextDouble() * 14.5,
+          yearBuilt: 2000 + random.nextInt(25),
+          totalSquareFootage: 800.0 + random.nextInt(4000),
+          floodingHistory: random.nextDouble() > 0.8,
+          foundationType: ['Strip', 'Raft', 'Pile'][random.nextInt(3)],
           videoUrl: hasVid ? videoUrl : null,
           panoramaUrl: has360
               ? panoramaUrls[random.nextInt(panoramaUrls.length)]
               : null,
           hasCertificateOfOccupancy: type == PropertyType.lands || type == PropertyType.house || random.nextDouble() > 0.7,
+          hasGovernorsConsent: random.nextDouble() > 0.6,
+          hasSurveyPlan: true,
+          hasDeedOfAssignment: random.nextDouble() > 0.5,
+          hasBuildingPlanApproval: random.nextDouble() > 0.4,
+          hasSoilTestReport: random.nextDouble() > 0.8,
+          hasStructuralIntegrityReport: random.nextDouble() > 0.8,
+          dueDiligenceNotes: 'Structure verified by the association of engineers. Clear of any government encumbrances.',
           hasLawyerVerifiedTerms: random.nextDouble() > 0.5,
           legalDocuments: [
             LegalDocument(
@@ -685,6 +696,18 @@ List<Property> _generateMockData() {
       electricitySupplyHours: 24,
       hasRunningWater: true,
       proximityToHospitalKm: 1.2,
+      yearBuilt: 2021,
+      totalSquareFootage: 4500,
+      floodingHistory: false,
+      foundationType: 'Raft Foundation',
+      hasCertificateOfOccupancy: true,
+      hasGovernorsConsent: true,
+      hasSurveyPlan: true,
+      hasDeedOfAssignment: true,
+      hasBuildingPlanApproval: true,
+      hasSoilTestReport: true,
+      hasStructuralIntegrityReport: true,
+      dueDiligenceNotes: 'Verified premium asset. Top tier construction quality. 100% Legal safety.',
       videoUrl:
           'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
       panoramaUrl:

@@ -5,7 +5,7 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/core/theme/theme_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
-import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_dashboard_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/agent_application_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/admin_verification_screen.dart';
 import 'package:swiftspace/features/auth/presentation/pages/operations/operations_dashboard.dart';
@@ -179,7 +179,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   onTap: () {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const AgentDashboardScreen()),
+                      MaterialPageRoute(builder: (_) => const ProfessionalDashboardScreen()),
                       (route) => false,
                     );
                   },

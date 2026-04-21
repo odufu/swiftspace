@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:swiftspace/features/agent/presentation/pages/agent_dashboard_screen.dart';
 import 'package:swiftspace/main.dart';
 import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/auth/presentation/pages/role_selection_screen.dart';
@@ -22,11 +21,12 @@ class EmailAuthScreen extends StatefulWidget {
   State<EmailAuthScreen> createState() => _EmailAuthScreenState();
 }
 
-class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProviderStateMixin {
+class _EmailAuthScreenState extends State<EmailAuthScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _isLogin = true;
   bool _obscurePassword = true;
   late AnimationController _animController;
@@ -68,12 +68,18 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
 
     try {
       if (_isLogin) {
-        await authProvider.login(_emailController.text, _passwordController.text);
+        await authProvider.login(
+          _emailController.text,
+          _passwordController.text,
+        );
         if (mounted && authProvider.isAuthenticated) {
           UiUtils.showSuccess(context, 'Signed in successfully!');
         }
       } else {
-        await authProvider.signUp(_emailController.text, _passwordController.text);
+        await authProvider.signUp(
+          _emailController.text,
+          _passwordController.text,
+        );
         if (mounted && authProvider.isAuthenticated) {
           UiUtils.showSuccess(context, 'Account created successfully!');
         } else if (mounted) {
@@ -149,7 +155,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isDark 
+            colors: isDark
                 ? [const Color(0xFF121212), const Color(0xFF1A1A1A)]
                 : [const Color(0xFFF8F9FA), Colors.white],
           ),
@@ -194,10 +200,12 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
           ),
           const SizedBox(height: 8),
           Text(
-            _isLogin 
-                ? 'Sign in to your Swift Space account' 
+            _isLogin
+                ? 'Sign in to your Swift Space account'
                 : 'Join the premium real estate network',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           const SizedBox(height: 48),
           _buildTextField(
@@ -213,7 +221,8 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
             icon: LucideIcons.lock,
             isPassword: true,
             obscureText: _obscurePassword,
-            onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+            onTogglePassword: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
             validator: (v) => v!.length >= 6 ? null : 'Too short',
           ),
           const SizedBox(height: 32),
@@ -225,31 +234,56 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryLight,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
-              child: authProvider.isLoading 
+              child: authProvider.isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(_isLogin ? 'Login' : 'Sign Up', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  : Text(
+                      _isLogin ? 'Login' : 'Sign Up',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 24),
           TextButton(
             onPressed: _toggleAuthMode,
             child: Text(
-              _isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login",
+              _isLogin
+                  ? "Don't have an account? Sign Up"
+                  : "Already have an account? Login",
               style: TextStyle(color: theme.colorScheme.primary),
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: Divider(color: theme.dividerColor.withValues(alpha: 0.2))),
+              Expanded(
+                child: Divider(
+                  color: theme.dividerColor.withValues(alpha: 0.2),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('OR', style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(
+                  'OR',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-              Expanded(child: Divider(color: theme.dividerColor.withValues(alpha: 0.2))),
+              Expanded(
+                child: Divider(
+                  color: theme.dividerColor.withValues(alpha: 0.2),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -259,15 +293,22 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
             child: OutlinedButton(
               onPressed: authProvider.isLoading ? null : _signInWithGoogle,
               style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _GoogleIcon(size: 22),
                   const SizedBox(width: 12),
-                  const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -296,11 +337,14 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
-        suffixIcon: isPassword 
+        suffixIcon: isPassword
             ? IconButton(
-                icon: Icon(obscureText ? LucideIcons.eye : LucideIcons.eyeOff, size: 20),
+                icon: Icon(
+                  obscureText ? LucideIcons.eye : LucideIcons.eyeOff,
+                  size: 20,
+                ),
                 onPressed: onTogglePassword,
-              ) 
+              )
             : null,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         filled: true,
@@ -317,10 +361,7 @@ class _GoogleIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _GoogleGPainter(),
-    );
+    return CustomPaint(size: Size(size, size), painter: _GoogleGPainter());
   }
 }
 
@@ -341,11 +382,7 @@ class _GoogleGPainter extends CustomPainter {
     _drawArc(canvas, cx, cy, r, 2.68, 0.95, const Color(0xFFEA4335));
 
     // White cutout inner circle
-    canvas.drawCircle(
-      Offset(cx, cy),
-      r * 0.63,
-      Paint()..color = Colors.white,
-    );
+    canvas.drawCircle(Offset(cx, cy), r * 0.63, Paint()..color = Colors.white);
 
     // Blue horizontal bar (the crossbar of G)
     final Paint barPaint = Paint()..color = const Color(0xFF4285F4);
@@ -355,8 +392,15 @@ class _GoogleGPainter extends CustomPainter {
     );
   }
 
-  void _drawArc(Canvas canvas, double cx, double cy, double r,
-      double startAngle, double sweepAngle, Color color) {
+  void _drawArc(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double r,
+    double startAngle,
+    double sweepAngle,
+    Color color,
+  ) {
     final Paint paint = Paint()
       ..color = color
       ..strokeWidth = r * 0.37

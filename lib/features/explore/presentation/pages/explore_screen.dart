@@ -21,6 +21,8 @@ import 'package:swiftspace/core/utils/responsive.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/services/map_service.dart';
+import 'package:swiftspace/features/chat/presentation/state/notification_provider.dart';
+import 'package:swiftspace/features/chat/domain/entities/notification.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -551,6 +553,17 @@ class _ExploreScreenState extends State<ExploreScreen>
                                 ),
                                 onPressed: () {
                                   Navigator.pop(context);
+                                  
+                                  final noteProvider = Provider.of<NotificationProvider>(context, listen: false);
+                                  noteProvider.addNotification(NotificationModel(
+                                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                                    title: 'Price Alert Active',
+                                    message: 'We will notify you immediately when a property matching these filters is listed.',
+                                    type: NotificationType.match,
+                                    timestamp: DateTime.now(),
+                                    isRead: false,
+                                  ));
+
                                   ScaffoldMessenger.of(
                                     this.context,
                                   ).showSnackBar(
