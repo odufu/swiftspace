@@ -10,6 +10,8 @@ import 'package:swiftspace/features/agent/presentation/pages/property_onboarding
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
+
 class MyPropertiesTab extends StatelessWidget {
   const MyPropertiesTab({super.key});
 
@@ -19,9 +21,10 @@ class MyPropertiesTab extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Consumer<PropertyProvider>(
-        builder: (context, provider, child) {
-          final properties = provider.myProperties;
+      body: Consumer2<AuthProvider, PropertyProvider>(
+        builder: (context, auth, provider, child) {
+          final userId = auth.user?.id ?? '';
+          final properties = provider.getPropertiesForLister(userId);
           
           return CustomScrollView(
             slivers: [

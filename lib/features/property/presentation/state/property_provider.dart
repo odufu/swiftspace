@@ -38,8 +38,12 @@ class PropertyProvider extends ChangeNotifier {
   Map<String, String> get uploadedUrls => _uploadedUrls;
   bool get isUploading => _uploadProgress.values.any((p) => p < 1.0 && p > 0);
 
-  // Restored Getters
-  List<Property> get myProperties => _properties; // In a full app, this might filter by current user
+  // Filtered Getters
+  List<Property> getPropertiesForLister(String listerId) {
+    if (listerId.isEmpty) return [];
+    return _properties.where((p) => p.listerId == listerId).toList();
+  }
+  
   List<Property> get liveProperties => _properties.where((p) => !p.isTest).toList();
   List<Property> get testProperties => _properties.where((p) => p.isTest).toList();
 

@@ -246,7 +246,9 @@ class OverviewTab extends StatelessWidget {
                 Expanded(
                   child: Consumer<PropertyProvider>(
                     builder: (context, provider, _) {
-                      final totalViews = provider.myProperties.fold(0, (sum, p) => sum + p.viewsCount);
+                      final userId = authProvider.user?.id ?? '';
+                      final myProps = provider.getPropertiesForLister(userId);
+                      final totalViews = myProps.fold(0, (sum, p) => sum + p.viewsCount);
                       return _buildMetricCard(
                         context, LucideIcons.eye, 'Total Views', 
                         '${(totalViews / 1000).toStringAsFixed(1)}k', '+12%', Colors.blue);
@@ -257,7 +259,9 @@ class OverviewTab extends StatelessWidget {
                 Expanded(
                   child: Consumer<PropertyProvider>(
                     builder: (context, provider, _) {
-                      final totalInteractions = provider.myProperties.fold(0, (sum, p) => sum + p.favoritesCount + p.videoViewsCount);
+                      final userId = authProvider.user?.id ?? '';
+                      final myProps = provider.getPropertiesForLister(userId);
+                      final totalInteractions = myProps.fold(0, (sum, p) => sum + p.favoritesCount + p.videoViewsCount);
                       return _buildMetricCard(
                         context, LucideIcons.mousePointerClick, 'Interactions', 
                         '$totalInteractions', '+5%', Colors.purple);
@@ -272,7 +276,9 @@ class OverviewTab extends StatelessWidget {
                 Expanded(
                   child: Consumer<PropertyProvider>(
                     builder: (context, provider, _) {
-                      final hotLeads = provider.myProperties.fold(0, (sum, p) => sum + (p.favoritesCount > 0 ? 1 : 0));
+                      final userId = authProvider.user?.id ?? '';
+                      final myProps = provider.getPropertiesForLister(userId);
+                      final hotLeads = myProps.fold(0, (sum, p) => sum + (p.favoritesCount > 0 ? 1 : 0));
                       return _buildMetricCard(
                         context, LucideIcons.users, 'Saved Listings', 
                         '$hotLeads', '+8%', Colors.orange);
