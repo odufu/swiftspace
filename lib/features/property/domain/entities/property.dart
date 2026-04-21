@@ -134,6 +134,7 @@ class Property {
   final int viewsCount;
   final int favoritesCount;
   final int videoViewsCount;
+  final String? listerId; // Links to auth.users.id
 
   String get agentName => listerName;
   final int proximityToRoadMeters;
@@ -198,6 +199,7 @@ class Property {
     this.appliesAgencyFee = true,
     this.appliesLegalFee = true,
     this.appliesServiceFee = true,
+    this.listerId,
   });
 
   Property copyWith({
@@ -244,6 +246,7 @@ class Property {
     bool? appliesAgencyFee,
     bool? appliesLegalFee,
     bool? appliesServiceFee,
+    String? listerId,
   }) {
     return Property(
       id: id ?? this.id,
@@ -289,17 +292,25 @@ class Property {
       appliesAgencyFee: appliesAgencyFee ?? this.appliesAgencyFee,
       appliesLegalFee: appliesLegalFee ?? this.appliesLegalFee,
       appliesServiceFee: appliesServiceFee ?? this.appliesServiceFee,
+      listerId: listerId ?? this.listerId,
     );
   }
 
+  static String formatPrice(double price) {
+    if (price >= 1000000) return '₦${(price / 1000000).toStringAsFixed(1)}M';
+    if (price >= 1000) return '₦${(price / 1000).toStringAsFixed(1)}k';
+    return '₦${price.toStringAsFixed(0)}';
+  }
+
   factory Property.fromMap(Map<String, dynamic> map) {
+    final price = (map['price'] as num).toDouble();
     return Property(
       id: map['id'],
       title: map['title'],
       locationName: map['location_name'],
-      price: (map['price'] as num).toDouble(),
+      price: price,
       priceTerm: map['price_term'],
-      formattedPrice: map['formatted_price'] ?? '',
+      formattedPrice: map['formatted_price'] ?? formatPrice(price),
       location: LatLng(
         (map['latitude'] as num).toDouble(),
         (map['longitude'] as num).toDouble(),
@@ -337,6 +348,7 @@ class Property {
       appliesAgencyFee: map['applies_agency_fee'] ?? true,
       appliesLegalFee: map['applies_legal_fee'] ?? true,
       appliesServiceFee: map['applies_service_fee'] ?? true,
+      listerId: map['lister_id'],
     );
   }
 
@@ -347,7 +359,7 @@ class Property {
       'location_name': locationName,
       'price': price,
       'price_term': priceTerm,
-      'formatted_price': formattedPrice,
+      // Removed 'formatted_price' to fix Supabase schema mismatch
       'latitude': location.latitude,
       'longitude': location.longitude,
       'type': type.name,
@@ -383,6 +395,7 @@ class Property {
       'applies_agency_fee': appliesAgencyFee,
       'applies_legal_fee': appliesLegalFee,
       'applies_service_fee': appliesServiceFee,
+      'lister_id': listerId,
     };
   }
 }

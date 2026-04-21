@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/property.dart';
 import '../mock_properties.dart';
-import '../../../../core/error/app_exception.dart';
+import 'package:swiftspace/core/error/app_exception.dart';
 
 class PropertyRepository {
   final SupabaseClient _client;
@@ -56,6 +56,14 @@ class PropertyRepository {
       } catch (e) {
         throw AppException.fromSupabase(e);
       }
+    }
+  }
+
+  Future<void> insertProperty(Property property) async {
+    try {
+      await _client.from('properties').insert(property.toMap());
+    } catch (e) {
+      throw AppException.fromSupabase(e);
     }
   }
 }

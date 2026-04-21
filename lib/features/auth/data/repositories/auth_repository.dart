@@ -167,8 +167,8 @@ class AuthRepository {
         if (fullName != null) 'full_name': fullName,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
         if (yearsExperience != null) 'years_experience': yearsExperience,
-        'government_id_url': governmentIdUrl, // Allow setting to null on rejection
-        'broker_license_url': brokerLicenseUrl,
+        if (governmentIdUrl != null) 'government_id_url': governmentIdUrl,
+        if (brokerLicenseUrl != null) 'broker_license_url': brokerLicenseUrl,
         if (termsAccepted != null) 'terms_accepted': termsAccepted,
       };
       

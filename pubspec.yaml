@@ -33,6 +33,10 @@ dependencies:
   video_player: ^2.11.1
   file_picker: ^8.0.0
   connectivity_plus: ^6.0.3
+  cloudinary_public: ^0.23.1
+  path: ^1.9.0
+  confetti: ^0.7.0
+  dio: ^5.9.2
 
 dev_dependencies:
   flutter_test:

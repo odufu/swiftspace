@@ -11,6 +11,7 @@ import 'package:swiftspace/features/auth/presentation/pages/operations/sections/
 import 'package:swiftspace/features/auth/presentation/pages/operations/sections/properties_section.dart';
 
 import '../../state/admin_provider.dart';
+import '../splash_screen.dart';
 
 class OperationsDashboard extends StatefulWidget {
   const OperationsDashboard({super.key});
@@ -53,8 +54,18 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
           if (isDesktop)
             OperationsSidebar(
               selectedIndex: _selectedIndex,
-              onEntrySelected: (index) =>
-                  setState(() => _selectedIndex = index),
+              onEntrySelected: (index) {
+                if (index == -2) {
+                  // Handle Logout
+                  Provider.of<AuthProvider>(context, listen: false).signOut();
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const SplashScreen()),
+                    (route) => false,
+                  );
+                } else {
+                  setState(() => _selectedIndex = index);
+                }
+              },
             ),
           Expanded(
             child: Column(
@@ -138,8 +149,17 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
       child: OperationsSidebar(
         selectedIndex: _selectedIndex,
         onEntrySelected: (index) {
-          setState(() => _selectedIndex = index);
-          Navigator.pop(context);
+          if (index == -2) {
+            Navigator.pop(context);
+            Provider.of<AuthProvider>(context, listen: false).signOut();
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const SplashScreen()),
+              (route) => false,
+            );
+          } else {
+            setState(() => _selectedIndex = index);
+            Navigator.pop(context);
+          }
         },
       ),
     );

@@ -53,23 +53,29 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> _loadProfile(String userId) async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> _loadProfile(String userId, {bool showLoading = true}) async {
+    if (showLoading) {
+      _isLoading = true;
+      notifyListeners();
+    }
 
-    _profile = await _repository.getUserProfile(userId);
-    
-    // Auto-sync Google avatar if missing in profile record
-    if (_profile != null && _profile!.avatarUrl == null && _user != null) {
-      final googleAvatar = _user!.userMetadata?['avatar_url'] as String?;
-      if (googleAvatar != null) {
-        await _repository.updateProfile(_user!.id, avatarUrl: googleAvatar);
-        _profile = _profile!.copyWith(avatarUrl: googleAvatar);
+    try {
+      _profile = await _repository.getUserProfile(userId);
+      
+      // Auto-sync Google avatar if missing in profile record
+      if (_profile != null && _profile!.avatarUrl == null && _user != null) {
+        final googleAvatar = _user!.userMetadata?['avatar_url'] as String?;
+        if (googleAvatar != null) {
+          await _repository.updateProfile(_user!.id, avatarUrl: googleAvatar);
+          _profile = _profile!.copyWith(avatarUrl: googleAvatar);
+        }
+      }
+    } finally {
+      if (showLoading) {
+        _isLoading = false;
+        notifyListeners();
       }
     }
-    
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> login(String email, String password) async {
@@ -77,7 +83,12 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     
     try {
-      await _repository.signIn(email: email, password: password);
+      final response = await _repository.signIn(email: email, password: password);
+      // Explicitly wait for profile to load before completing login task
+      if (response.user != null) {
+        _user = response.user;
+        await _loadProfile(response.user!.id, showLoading: false);
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -133,7 +144,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     
     try {
-      final isVerified = (role == UserRole.agent) ? false : true;
+      // Preserve verification status if already verified, otherwise reset for new agents
+      final bool alreadyVerified = _profile?.isVerified ?? false;
+      final isVerified = alreadyVerified || (role != UserRole.agent);
+      
       await _repository.updateUserRole(_user!.id, role, isVerified: isVerified);
       _profile = _profile?.copyWith(role: role, isVerified: isVerified) ?? UserProfile(
         id: _user!.id,
