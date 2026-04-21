@@ -117,7 +117,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         return false;
       }
     } else if (_currentStep == 4) {
-      if (_yearBuilt == null) {
+      if (_propertyType.category != PropertyCategory.land && _yearBuilt == null) {
         UiUtils.showError(context, 'Please specify the building year');
         return false;
       }
@@ -391,6 +391,8 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
                 items: const [
                   DropdownMenuItem(value: 'yr', child: Text('/yr')),
                   DropdownMenuItem(value: 'mo', child: Text('/mo')),
+                  DropdownMenuItem(value: 'wk', child: Text('/wk')),
+                  DropdownMenuItem(value: 'day', child: Text('/day')),
                   DropdownMenuItem(value: 'buy', child: Text('Buy')),
                 ],
                 onChanged: (v) => setState(() => _priceTerm = v!),
@@ -448,19 +450,35 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       children: [
         const Text('Final details', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         const SizedBox(height: 32),
-        Row(
-          children: [
-            _buildCounter('Bedrooms', _beds, (v) => setState(() => _beds = v)),
-            const SizedBox(width: 16),
-            _buildCounter('Bathrooms', _baths, (v) => setState(() => _baths = v)),
-          ],
-        ),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          Row(
+            children: [
+              _buildCounter(
+                _propertyType.category == PropertyCategory.commercial ? 'Rooms' : 'Bedrooms', 
+                _beds, 
+                (v) => setState(() => _beds = v)
+              ),
+              const SizedBox(width: 16),
+              _buildCounter(
+                _propertyType.category == PropertyCategory.commercial ? 'Restrooms' : 'Bathrooms', 
+                _baths, 
+                (v) => setState(() => _baths = v)
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
         const SizedBox(height: 32),
         const Text('Amenities', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
-          children: _allAmenities.map((a) {
+          children: _allAmenities.where((a) {
+            if (_propertyType.category == PropertyCategory.land) {
+              return ['Security Guard', 'Fenced & Gated', 'Tarred Road'].contains(a);
+            }
+            return true;
+          }).map((a) {
             final isSelected = _selectedAmenities.contains(a);
             return FilterChip(
               label: Text(a),
@@ -481,7 +499,8 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         const Text('Proximity & Vital Signs', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         _buildSlider('Road Proximity (meters)', _proximityToRoad.toDouble(), 0, 1000, (v) => setState(() => _proximityToRoad = v.toInt())),
-        _buildSlider('Avg. Electricity (hrs/day)', _electricityHours.toDouble(), 0, 24, (v) => setState(() => _electricityHours = v.toInt())),
+        if (_propertyType.category != PropertyCategory.land)
+          _buildSlider('Avg. Electricity (hrs/day)', _electricityHours.toDouble(), 0, 24, (v) => setState(() => _electricityHours = v.toInt())),
         _buildSlider('Hospital Proximity (km)', _proximityToHospital, 0, 20, (v) => setState(() => _proximityToHospital = v)),
         const SizedBox(height: 24),
         TextField(
@@ -502,12 +521,15 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         const SizedBox(height: 8),
         const Text('Provide technical details about the structure.', style: TextStyle(color: Colors.grey)),
         const SizedBox(height: 32),
-        DropdownButtonFormField<int>(
-          initialValue: _yearBuilt,
-          items: List.generate(50, (index) => 2026 - index).map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
-          onChanged: (v) => setState(() => _yearBuilt = v),
-          decoration: const InputDecoration(labelText: 'Year Built', border: OutlineInputBorder()),
-        ),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          DropdownButtonFormField<int>(
+            initialValue: _yearBuilt,
+            items: List.generate(50, (index) => 2026 - index).map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            onChanged: (v) => setState(() => _yearBuilt = v),
+            decoration: const InputDecoration(labelText: 'Year Built', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 24),
+        ],
         const SizedBox(height: 24),
         TextField(
           controller: _sqftController,
@@ -515,12 +537,15 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
           decoration: const InputDecoration(labelText: 'Total Square Footage (approx)', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 24),
-        DropdownButtonFormField<String>(
-          initialValue: _foundationType,
-          items: ['Strip Foundation', 'Raft Foundation', 'Pile Foundation', 'Pad Foundation'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: (v) => setState(() => _foundationType = v!),
-          decoration: const InputDecoration(labelText: 'Foundation Type', border: OutlineInputBorder()),
-        ),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _foundationType,
+            items: ['Strip Foundation', 'Raft Foundation', 'Pile Foundation', 'Pad Foundation'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _foundationType = v!),
+            decoration: const InputDecoration(labelText: 'Foundation Type', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 24),
+        ],
         const SizedBox(height: 24),
         SwitchListTile(
           title: const Text('History of Flooding in Area?'),

@@ -7,6 +7,10 @@ import 'package:swiftspace/features/property/presentation/state/property_provide
 import 'package:swiftspace/features/auth/presentation/state/verification_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/features/agent/presentation/pages/tour_mapper_screen.dart';
+import 'package:swiftspace/features/property/domain/entities/virtual_tour.dart';
+import 'package:swiftspace/features/agent/presentation/pages/geo_fence_mapper_screen.dart';
+import 'package:latlong2/latlong.dart';
 
 class AgentPropertyEditScreen extends StatefulWidget {
   final String propertyId;
@@ -959,6 +963,7 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
   }
 
   Widget _buildEditableMediaLinks(Property p, PropertyProvider provider) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1007,6 +1012,82 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
             'No interactive media linked yet.',
             style: TextStyle(color: Colors.grey, fontSize: 13),
           ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              final result = await Navigator.push<VirtualTour>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TourMapperScreen(
+                    property: p,
+                    initialTour: p.virtualTour,
+                  ),
+                ),
+              );
+
+              if (result != null) {
+                provider.updateProperty(
+                  p.copyWith(
+                    virtualTour: result,
+                    has360View: true,
+                  ),
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('3D Walkthrough Map updated successfully!')),
+                  );
+                }
+              }
+            },
+            icon: const Icon(LucideIcons.mapPin, size: 16),
+            label: const Text('Map 3D Walkthrough (Interactive)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        if (p.type == PropertyType.lands) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push<List<LatLng>>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GeoFenceMapperScreen(property: p),
+                  ),
+                );
+
+                if (result != null) {
+                  provider.updateProperty(
+                    p.copyWith(
+                      geoFencePoints: result,
+                    ),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Land Geo-Fence mapped successfully!')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(LucideIcons.map, size: 16),
+              label: const Text('Map Geo-Fence Boundary'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1097,10 +1178,12 @@ class _AgentPropertyEditScreenState extends State<AgentPropertyEditScreen> {
             runSpacing: 8,
             children: p.legalDocuments.map((doc) {
               Color docColor = Colors.grey;
-              if (doc.status == LegalDocumentStatus.verified)
+              if (doc.status == LegalDocumentStatus.verified) {
                 docColor = Colors.green;
-              if (doc.status == LegalDocumentStatus.rejected)
+              }
+              if (doc.status == LegalDocumentStatus.rejected) {
                 docColor = Colors.red;
+              }
 
               return Chip(
                 avatar: Icon(

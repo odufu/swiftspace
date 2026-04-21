@@ -18,6 +18,7 @@ import 'package:swiftspace/features/chat/presentation/pages/chat_detail_screen.d
 import 'package:swiftspace/features/booking/presentation/pages/inspection_management_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
+import 'package:swiftspace/features/property/presentation/pages/property_map_explorer_screen.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
 import 'package:swiftspace/core/utils/responsive.dart';
@@ -577,7 +578,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const VirtualWalkthroughScreen(),
+                              builder: (_) => VirtualWalkthroughScreen(property: p),
                             ),
                           );
                         },
@@ -1473,13 +1474,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             FloatingActionButton(
               heroTag: 'map_fab_${p.id}',
               onPressed: () {
-                final pPrefs = Provider.of<UserPreferencesProvider>(
+                Navigator.push(
                   context,
-                  listen: false,
+                  MaterialPageRoute(
+                    builder: (_) => PropertyMapExplorerScreen(property: p),
+                  ),
                 );
-                pPrefs.setMapFocusProperty(p.id);
-                pPrefs.setTabIndex(0); // Go to Explore
-                Navigator.popUntil(context, (route) => route.isFirst);
               },
               backgroundColor: Colors.purple,
               foregroundColor: Colors.white,

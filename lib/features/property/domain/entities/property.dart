@@ -1,4 +1,5 @@
 import 'package:latlong2/latlong.dart';
+import 'virtual_tour.dart';
 
 enum PropertyType { shops, officeSpace, flatsAndApartments, lands, semiDetachedBungalows, semiDetachedDuplex, coWorkingSpace, detachedBungalows, warehouse, shopInAMall, detachedDuplex, terracedBungalows, commercialProperties, terracedDuplex, house }
 
@@ -163,6 +164,7 @@ class Property {
   
   final String? videoUrl;
   final String? panoramaUrl;
+  final VirtualTour? virtualTour;
   final List<LegalDocument> legalDocuments;
   final String? termsAndConditions;
   final PropertyVerificationStatus verificationStatus;
@@ -172,6 +174,9 @@ class Property {
   final bool appliesAgencyFee;
   final bool appliesLegalFee;
   final bool appliesServiceFee;
+
+  // Geo-fencing for lands
+  final List<LatLng>? geoFencePoints;
 
   Property({
     required this.id,
@@ -221,6 +226,7 @@ class Property {
     this.viewsCount = 0,
     this.favoritesCount = 0,
     this.videoViewsCount = 0,
+    this.virtualTour,
     this.legalDocuments = const [],
     this.termsAndConditions,
     this.verificationStatus = PropertyVerificationStatus.unverified,
@@ -228,6 +234,7 @@ class Property {
     this.appliesAgencyFee = true,
     this.appliesLegalFee = true,
     this.appliesServiceFee = true,
+    this.geoFencePoints,
     this.listerId,
   });
 
@@ -286,6 +293,8 @@ class Property {
     bool? appliesAgencyFee,
     bool? appliesLegalFee,
     bool? appliesServiceFee,
+    VirtualTour? virtualTour,
+    List<LatLng>? geoFencePoints,
     String? listerId,
   }) {
     return Property(
@@ -343,6 +352,8 @@ class Property {
       appliesAgencyFee: appliesAgencyFee ?? this.appliesAgencyFee,
       appliesLegalFee: appliesLegalFee ?? this.appliesLegalFee,
       appliesServiceFee: appliesServiceFee ?? this.appliesServiceFee,
+      virtualTour: virtualTour ?? this.virtualTour,
+      geoFencePoints: geoFencePoints ?? this.geoFencePoints,
       listerId: listerId ?? this.listerId,
     );
   }
@@ -412,6 +423,11 @@ class Property {
       appliesAgencyFee: map['applies_agency_fee'] ?? true,
       appliesLegalFee: map['applies_legal_fee'] ?? true,
       appliesServiceFee: map['applies_service_fee'] ?? true,
+      virtualTour: map['virtual_tour_data'] != null ? VirtualTour.fromMap(map['virtual_tour_data']) : null,
+      geoFencePoints: (map['geo_fence_points'] as List<dynamic>?)?.map((e) {
+        final pointMap = e as Map<String, dynamic>;
+        return LatLng((pointMap['lat'] as num).toDouble(), (pointMap['lng'] as num).toDouble());
+      }).toList(),
       listerId: map['lister_id'],
     );
   }
@@ -472,6 +488,8 @@ class Property {
       'applies_agency_fee': appliesAgencyFee,
       'applies_legal_fee': appliesLegalFee,
       'applies_service_fee': appliesServiceFee,
+      'virtual_tour_data': virtualTour?.toMap(),
+      'geo_fence_points': geoFencePoints?.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
       'lister_id': listerId,
     };
   }
