@@ -20,7 +20,8 @@ class PropertyOnboardingScreen extends StatefulWidget {
   const PropertyOnboardingScreen({super.key});
 
   @override
-  State<PropertyOnboardingScreen> createState() => _PropertyOnboardingScreenState();
+  State<PropertyOnboardingScreen> createState() =>
+      _PropertyOnboardingScreenState();
 }
 
 class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
@@ -34,6 +35,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   final _priceController = TextEditingController();
   PropertyType _propertyType = PropertyType.flatsAndApartments;
   String _priceTerm = 'yr'; // yr, mo, buy
+  bool _isPremium = false; // Whether this listing is premium (gated by paywall)
 
   // Step 2: Media
   List<XFile> _images = [];
@@ -49,11 +51,27 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   int _baths = 0;
   final List<String> _selectedAmenities = [];
   final List<String> _allAmenities = [
-    '24/7 Power', 'Running Water', 'Security Guard', 'Fenced & Gated', 
-    'Pre-paid Meter', 'Generator House', 'Tarred Road', 'En-suite', 
-    'POP Ceiling', 'Wardrobe', 'Ample Parking', 'Swimming Pool', 
-    'CCTV Cameras', 'Boys Quarters', 'Tiled Floors', 'Air Conditioning',
-    'Fiber Internet', 'Gym', 'Playground', 'Garden', 'Smart Home'
+    '24/7 Power',
+    'Running Water',
+    'Security Guard',
+    'Fenced & Gated',
+    'Pre-paid Meter',
+    'Generator House',
+    'Tarred Road',
+    'En-suite',
+    'POP Ceiling',
+    'Wardrobe',
+    'Ample Parking',
+    'Swimming Pool',
+    'CCTV Cameras',
+    'Boys Quarters',
+    'Tiled Floors',
+    'Air Conditioning',
+    'Fiber Internet',
+    'Gym',
+    'Playground',
+    'Garden',
+    'Smart Home',
   ];
 
   // Proximity Metrics
@@ -75,13 +93,25 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   bool _hasBuildingPlanApproval = false;
   bool _hasSoilTest = false;
   bool _hasStructuralReport = false;
+
+  // File objects for legal documents
+  XFile? _fileCOofO;
+  XFile? _fileGovernorsConsent;
+  XFile? _fileSurveyPlan;
+  XFile? _fileDeedOfAssignment;
+  XFile? _fileBuildingPlanApproval;
+  XFile? _fileSoilTest;
+  XFile? _fileStructuralReport;
+
   final _dueDiligenceController = TextEditingController();
   bool _lawyerVerified = false;
 
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
     _loadFormDraft();
   }
 
@@ -105,6 +135,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
           if (data['priceTerm'] != null) {
             _priceTerm = data['priceTerm'];
           }
+          _isPremium = data['isPremium'] ?? false;
           if (data['amenities'] != null) {
             _selectedAmenities.clear();
             _selectedAmenities.addAll(List<String>.from(data['amenities']));
@@ -126,6 +157,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       'baths': _baths,
       'propertyTypeIndex': PropertyType.values.indexOf(_propertyType),
       'priceTerm': _priceTerm,
+      'isPremium': _isPremium,
       'amenities': _selectedAmenities,
     };
     await prefs.setString('onboarding_form_draft', jsonEncode(draft));
@@ -168,13 +200,17 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         return false;
       }
     } else if (_currentStep == 4) {
-      if (_propertyType.category != PropertyCategory.land && _yearBuilt == null) {
+      if (_propertyType.category != PropertyCategory.land &&
+          _yearBuilt == null) {
         UiUtils.showError(context, 'Please specify the building year');
         return false;
       }
     } else if (_currentStep == 5) {
       if (!_hasSurveyPlan && !_hasCOofO && !_hasGovernorsConsent) {
-        UiUtils.showWarning(context, 'Proceeding without major title documents may slow down verification.');
+        UiUtils.showWarning(
+          context,
+          'Proceeding without major title documents may slow down verification.',
+        );
       }
     }
     return true;
@@ -191,8 +227,11 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
 
   Future<void> _submit() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
-    
+    final propertyProvider = Provider.of<PropertyProvider>(
+      context,
+      listen: false,
+    );
+
     // Check if background uploads are still in progress
     if (propertyProvider.isUploading) {
       UiUtils.showInfo(context, 'Waiting for media to finish uploading...');
@@ -238,6 +277,7 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       hasLawyerVerifiedTerms: _lawyerVerified,
       verificationStatus: PropertyVerificationStatus.pendingReview,
       isActive: true,
+      isPremium: _isPremium,
     );
 
     final listerId = authProvider.user?.id;
@@ -252,13 +292,20 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       listerId: listerId,
       video: _video,
       planImage: _floorPlan,
+      coOfOFile: _fileCOofO,
+      governorsConsentFile: _fileGovernorsConsent,
+      surveyPlanFile: _fileSurveyPlan,
+      deedOfAssignmentFile: _fileDeedOfAssignment,
+      buildingPlanApprovalFile: _fileBuildingPlanApproval,
+      soilTestReportFile: _fileSoilTest,
+      structuralIntegrityReportFile: _fileStructuralReport,
     );
 
     if (mounted) {
       if (success) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('onboarding_form_draft');
-        
+
         sl<AudioManager>().playSuccess(context);
         _confettiController.play();
         _showSuccessDialog();
@@ -277,11 +324,22 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.rocket, color: AppColors.primaryLight, size: 64),
+            const Icon(
+              LucideIcons.rocket,
+              color: AppColors.primaryLight,
+              size: 64,
+            ),
             const SizedBox(height: 24),
-            const Text('Listing Published!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const Text(
+              'Listing Published!',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            const Text('Your property is now under review and will be live shortly.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+            const Text(
+              'Your property is now under review and will be live shortly.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -295,7 +353,13 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
                   backgroundColor: AppColors.primaryLight,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Back to Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Back to Dashboard',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -312,73 +376,98 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('List Property', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'List Property',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
-          onPressed: () => _currentStep > 0 ? _prevStep() : Navigator.pop(context),
+          onPressed: () =>
+              _currentStep > 0 ? _prevStep() : Navigator.pop(context),
         ),
         actions: [
           if (!isLoading)
             TextButton(
               onPressed: _saveAsDraft,
-              child: const Text('Save Draft', style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Save Draft',
+                style: TextStyle(
+                  color: AppColors.primaryLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Text('Step ${_currentStep + 1} of $_totalSteps', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+              child: Text(
+                'Step ${_currentStep + 1} of $_totalSteps',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+              ),
             ),
           ),
         ],
       ),
-      body: isLoading 
-        ? Center(child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
-              const Text('Finalizing your listing...', style: TextStyle(fontWeight: FontWeight.bold)),
-              if (isUploading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text('Completing media uploads...', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                ),
-            ],
-          ))
-        : Column(
-            children: [
-              _buildProgressBar(),
-              Expanded(
-                child: Stack(
-                  children: [
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: _buildCurrentStep(),
+      body: isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Finalizing your listing...',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if (isUploading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Completing media uploads...',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: ConfettiWidget(
-                        confettiController: _confettiController,
-                        blastDirectionality: BlastDirectionality.explosive,
-                        shouldLoop: false,
-                        colors: const [
-                          Colors.green,
-                          Colors.blue,
-                          Colors.pink,
-                          Colors.orange,
-                          Colors.purple
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              _buildBottomNav(),
-            ],
-          ),
+            )
+          : Column(
+              children: [
+                _buildProgressBar(),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _buildCurrentStep(),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: ConfettiWidget(
+                          confettiController: _confettiController,
+                          blastDirectionality: BlastDirectionality.explosive,
+                          shouldLoop: false,
+                          colors: const [
+                            Colors.green,
+                            Colors.blue,
+                            Colors.pink,
+                            Colors.orange,
+                            Colors.purple,
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildBottomNav(),
+              ],
+            ),
     );
   }
 
@@ -397,14 +486,22 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
 
   Widget _buildCurrentStep() {
     switch (_currentStep) {
-      case 0: return _buildStepBasics();
-      case 1: return _buildStepMedia();
-      case 2: return _buildStepLocation();
-      case 3: return _buildStepDetails();
-      case 4: return _buildStepTechnical();
-      case 5: return _buildStepLegal();
-      case 6: return _buildStepReview();
-      default: return Container();
+      case 0:
+        return _buildStepBasics();
+      case 1:
+        return _buildStepMedia();
+      case 2:
+        return _buildStepLocation();
+      case 3:
+        return _buildStepDetails();
+      case 4:
+        return _buildStepTechnical();
+      case 5:
+        return _buildStepLegal();
+      case 6:
+        return _buildStepReview();
+      default:
+        return Container();
     }
   }
 
@@ -413,20 +510,37 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       key: const ValueKey(0),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Let\'s start with the basics', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Let\'s start with the basics',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        const Text('Select your property type and set your pricing.', style: TextStyle(color: Colors.grey)),
+        const Text(
+          'Select your property type and set your pricing.',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 32),
         DropdownButtonFormField<PropertyType>(
           initialValue: _propertyType,
-          items: PropertyType.values.map((e) => DropdownMenuItem(value: e, child: Text(e.displayName))).toList(),
+          items: PropertyType.values
+              .map(
+                (e) => DropdownMenuItem(value: e, child: Text(e.displayName)),
+              )
+              .toList(),
           onChanged: (v) => setState(() => _propertyType = v!),
-          decoration: const InputDecoration(labelText: 'Property Type', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Property Type',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 24),
         TextField(
           controller: _titleController,
-          decoration: const InputDecoration(labelText: 'Property Title', hintText: 'e.g. Modern 3-Bed Apartment', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Property Title',
+            hintText: 'e.g. Modern 3-Bed Apartment',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 24),
         Row(
@@ -436,7 +550,10 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
               child: TextField(
                 controller: _priceController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Price (₦)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Price (₦)',
+                  border: OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -456,6 +573,45 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Premium Listing',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Spacer(),
+                  Switch(
+                    value: _isPremium,
+                    onChanged: (v) => setState(() => _isPremium = v),
+                    activeColor: Colors.amber,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Premium listings are gated by a refundable commitment deposit. This filters out spammers and ensures you only deal with serious, verified clients.',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -464,9 +620,15 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
     return Column(
       key: const ValueKey(1),
       children: [
-        const Text('Bring your listing to life', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Bring your listing to life',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        const Text('Upload high-quality media to attract more leads.', style: TextStyle(color: Colors.grey)),
+        const Text(
+          'Upload high-quality media to attract more leads.',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 32),
         MediaPickerComponent(
           images: _images,
@@ -483,7 +645,10 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Where is it based?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Where is it based?',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 32),
         LocationPickerComponent(
           initialLocation: _selectedLocation,
@@ -492,7 +657,11 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         const SizedBox(height: 24),
         TextField(
           onChanged: (v) => setState(() => _locationName = v),
-          decoration: const InputDecoration(labelText: 'Area / Neighborhood Name', hintText: 'e.g. Maitama, Abuja', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Area / Neighborhood Name',
+            hintText: 'e.g. Maitama, Abuja',
+            border: OutlineInputBorder(),
+          ),
         ),
       ],
     );
@@ -503,21 +672,28 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       key: const ValueKey(3),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Final details', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Final details',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 32),
         if (_propertyType.category != PropertyCategory.land) ...[
           Row(
             children: [
               _buildCounter(
-                _propertyType.category == PropertyCategory.commercial ? 'Rooms' : 'Bedrooms', 
-                _beds, 
-                (v) => setState(() => _beds = v)
+                _propertyType.category == PropertyCategory.commercial
+                    ? 'Rooms'
+                    : 'Bedrooms',
+                _beds,
+                (v) => setState(() => _beds = v),
               ),
               const SizedBox(width: 16),
               _buildCounter(
-                _propertyType.category == PropertyCategory.commercial ? 'Restrooms' : 'Bathrooms', 
-                _baths, 
-                (v) => setState(() => _baths = v)
+                _propertyType.category == PropertyCategory.commercial
+                    ? 'Restrooms'
+                    : 'Bathrooms',
+                _baths,
+                (v) => setState(() => _baths = v),
               ),
             ],
           ),
@@ -528,40 +704,71 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
-          children: _allAmenities.where((a) {
-            if (_propertyType.category == PropertyCategory.land) {
-              return ['Security Guard', 'Fenced & Gated', 'Tarred Road'].contains(a);
-            }
-            return true;
-          }).map((a) {
-            final isSelected = _selectedAmenities.contains(a);
-            return FilterChip(
-              label: Text(a),
-              selected: isSelected,
-              onSelected: (val) {
-                setState(() {
-                  if (val) {
-                    _selectedAmenities.add(a);
-                  } else {
-                    _selectedAmenities.remove(a);
-                  }
-                });
-              },
-            );
-          }).toList(),
+          children: _allAmenities
+              .where((a) {
+                if (_propertyType.category == PropertyCategory.land) {
+                  return [
+                    'Security Guard',
+                    'Fenced & Gated',
+                    'Tarred Road',
+                  ].contains(a);
+                }
+                return true;
+              })
+              .map((a) {
+                final isSelected = _selectedAmenities.contains(a);
+                return FilterChip(
+                  label: Text(a),
+                  selected: isSelected,
+                  onSelected: (val) {
+                    setState(() {
+                      if (val) {
+                        _selectedAmenities.add(a);
+                      } else {
+                        _selectedAmenities.remove(a);
+                      }
+                    });
+                  },
+                );
+              })
+              .toList(),
         ),
         const SizedBox(height: 32),
-        const Text('Proximity & Vital Signs', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'Proximity & Vital Signs',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
-        _buildSlider('Road Proximity (meters)', _proximityToRoad.toDouble(), 0, 1000, (v) => setState(() => _proximityToRoad = v.toInt())),
+        _buildSlider(
+          'Road Proximity (meters)',
+          _proximityToRoad.toDouble(),
+          0,
+          1000,
+          (v) => setState(() => _proximityToRoad = v.toInt()),
+        ),
         if (_propertyType.category != PropertyCategory.land)
-          _buildSlider('Avg. Electricity (hrs/day)', _electricityHours.toDouble(), 0, 24, (v) => setState(() => _electricityHours = v.toInt())),
-        _buildSlider('Hospital Proximity (km)', _proximityToHospital, 0, 20, (v) => setState(() => _proximityToHospital = v)),
+          _buildSlider(
+            'Avg. Electricity (hrs/day)',
+            _electricityHours.toDouble(),
+            0,
+            24,
+            (v) => setState(() => _electricityHours = v.toInt()),
+          ),
+        _buildSlider(
+          'Hospital Proximity (km)',
+          _proximityToHospital,
+          0,
+          20,
+          (v) => setState(() => _proximityToHospital = v),
+        ),
         const SizedBox(height: 24),
         TextField(
           controller: _descriptionController,
           maxLines: 4,
-          decoration: const InputDecoration(labelText: 'General Description', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'General Description',
+            border: OutlineInputBorder(),
+          ),
         ),
       ],
     );
@@ -572,16 +779,27 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       key: const ValueKey(4),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Technical Specifications', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Technical Specifications',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        const Text('Provide technical details about the structure.', style: TextStyle(color: Colors.grey)),
+        const Text(
+          'Provide technical details about the structure.',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 32),
         if (_propertyType.category != PropertyCategory.land) ...[
           DropdownButtonFormField<int>(
             initialValue: _yearBuilt,
-            items: List.generate(50, (index) => 2026 - index).map((e) => DropdownMenuItem(value: e, child: Text('$e'))).toList(),
+            items: List.generate(50, (index) => 2026 - index)
+                .map((e) => DropdownMenuItem(value: e, child: Text('$e')))
+                .toList(),
             onChanged: (v) => setState(() => _yearBuilt = v),
-            decoration: const InputDecoration(labelText: 'Year Built', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Year Built',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -589,15 +807,26 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         TextField(
           controller: _sqftController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Total Square Footage (approx)', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Total Square Footage (approx)',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 24),
         if (_propertyType.category != PropertyCategory.land) ...[
           DropdownButtonFormField<String>(
             initialValue: _foundationType,
-            items: ['Strip Foundation', 'Raft Foundation', 'Pile Foundation', 'Pad Foundation'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: [
+              'Strip Foundation',
+              'Raft Foundation',
+              'Pile Foundation',
+              'Pad Foundation',
+            ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
             onChanged: (v) => setState(() => _foundationType = v!),
-            decoration: const InputDecoration(labelText: 'Foundation Type', border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Foundation Type',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -618,27 +847,156 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       key: const ValueKey(5),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Verification & Documents', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const Text(
+          'Verification & Documents',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        const Text('Check the boxes for documents you have available.', style: TextStyle(color: Colors.grey)),
+        const Text(
+          'Check the boxes for documents you have available.',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 32),
-        _buildCheckItem('Certificate of Occupancy (C of O)', _hasCOofO, (v) => setState(() => _hasCOofO = v!)),
-        _buildCheckItem('Governor\'s Consent', _hasGovernorsConsent, (v) => setState(() => _hasGovernorsConsent = v!)),
-        _buildCheckItem('Survey Plan', _hasSurveyPlan, (v) => setState(() => _hasSurveyPlan = v!)),
-        _buildCheckItem('Deed of Assignment', _hasDeedOfAssignment, (v) => setState(() => _hasDeedOfAssignment = v!)),
-        _buildCheckItem('Building Plan Approval', _hasBuildingPlanApproval, (v) => setState(() => _hasBuildingPlanApproval = v!)),
+        _buildCheckItemWithUpload(
+          'Certificate of Occupancy (C of O)',
+          _hasCOofO,
+          (bool? v) => setState(() => _hasCOofO = v ?? false),
+          _fileCOofO,
+          (file) => setState(() => _fileCOofO = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Governor\'s Consent',
+          _hasGovernorsConsent,
+          (bool? v) => setState(() => _hasGovernorsConsent = v ?? false),
+          _fileGovernorsConsent,
+          (file) => setState(() => _fileGovernorsConsent = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Survey Plan',
+          _hasSurveyPlan,
+          (bool? v) => setState(() => _hasSurveyPlan = v ?? false),
+          _fileSurveyPlan,
+          (file) => setState(() => _fileSurveyPlan = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Deed of Assignment',
+          _hasDeedOfAssignment,
+          (bool? v) => setState(() => _hasDeedOfAssignment = v ?? false),
+          _fileDeedOfAssignment,
+          (file) => setState(() => _fileDeedOfAssignment = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Building Plan Approval',
+          _hasBuildingPlanApproval,
+          (bool? v) => setState(() => _hasBuildingPlanApproval = v ?? false),
+          _fileBuildingPlanApproval,
+          (file) => setState(() => _fileBuildingPlanApproval = file),
+        ),
         const Divider(height: 48),
-        const Text('Due Diligence', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          'Due Diligence',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
-        _buildCheckItem('Soil Test Report Available', _hasSoilTest, (v) => setState(() => _hasSoilTest = v!)),
-        _buildCheckItem('Structural Integrity Report', _hasStructuralReport, (v) => setState(() => _hasStructuralReport = v!)),
-        _buildCheckItem('Lawyer Verified Terms', _lawyerVerified, (v) => setState(() => _lawyerVerified = v!)),
+        _buildCheckItemWithUpload(
+          'Soil Test Report Available',
+          _hasSoilTest,
+          (bool? v) => setState(() => _hasSoilTest = v ?? false),
+          _fileSoilTest,
+          (file) => setState(() => _fileSoilTest = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Structural Integrity Report',
+          _hasStructuralReport,
+          (bool? v) => setState(() => _hasStructuralReport = v ?? false),
+          _fileStructuralReport,
+          (file) => setState(() => _fileStructuralReport = file),
+        ),
+        _buildCheckItem(
+          'Lawyer Verified Terms',
+          _lawyerVerified,
+          (bool? v) => setState(() => _lawyerVerified = v ?? false),
+        ),
         const SizedBox(height: 24),
         TextField(
           controller: _dueDiligenceController,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Internal Due Diligence Notes', hintText: 'Any extra technical or legal notes...', border: OutlineInputBorder()),
+          decoration: const InputDecoration(
+            labelText: 'Internal Due Diligence Notes',
+            hintText: 'Any extra technical or legal notes...',
+            border: OutlineInputBorder(),
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCheckItemWithUpload(
+    String label,
+    bool value,
+    Function(bool?) onChanged,
+    XFile? file,
+    Function(XFile?) onFilePicked,
+  ) {
+    return Column(
+      children: [
+        CheckboxListTile(
+          title: Text(label, style: const TextStyle(fontSize: 14)),
+          value: value,
+          onChanged: onChanged,
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          activeColor: AppColors.primaryLight,
+          dense: true,
+          secondary: value
+              ? IconButton(
+                  icon: Icon(
+                    file != null
+                        ? LucideIcons.fileCheck
+                        : LucideIcons.uploadCloud,
+                    color: file != null ? Colors.green : AppColors.primaryLight,
+                    size: 20,
+                  ),
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final pickedFile = await picker
+                        .pickMedia(); // Allow images or video/files
+                    if (pickedFile != null) {
+                      onFilePicked(pickedFile);
+                    }
+                  },
+                  tooltip: file != null
+                      ? 'Document uploaded'
+                      : 'Upload document',
+                )
+              : null,
+        ),
+        if (value && file != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 48, bottom: 8),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.paperclip, size: 12, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    file.name,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onFilePicked(null),
+                  child: const Icon(LucideIcons.x, size: 14, color: Colors.red),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -655,15 +1013,27 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
     );
   }
 
-  Widget _buildSlider(String label, double value, double min, double max, Function(double) onChanged) {
+  Widget _buildSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    Function(double) onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            Text(value.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            Text(
+              value.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         Slider(
@@ -685,19 +1055,43 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
         _buildReviewRow('Title', _titleController.text),
         _buildReviewRow('Price', '₦${_priceController.text}/$_priceTerm'),
         _buildReviewRow('Type', _propertyType.displayName),
+        _buildReviewRow('Premium Listing', _isPremium ? 'YES' : 'NO'),
         _buildReviewRow('Photos', '${_images.length} uploaded'),
-        _buildReviewRow('Location', _locationName.isEmpty ? 'Abuja' : _locationName),
+        _buildReviewRow(
+          'Location',
+          _locationName.isEmpty ? 'Abuja' : _locationName,
+        ),
         const Divider(height: 32),
-        const Text('Technical Specs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryLight)),
+        const Text(
+          'Technical Specs',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.primaryLight,
+          ),
+        ),
         const SizedBox(height: 12),
         _buildReviewRow('Year Built', '$_yearBuilt'),
-        _buildReviewRow('SQFT', _sqftController.text.isEmpty ? 'N/A' : _sqftController.text),
+        _buildReviewRow(
+          'SQFT',
+          _sqftController.text.isEmpty ? 'N/A' : _sqftController.text,
+        ),
         _buildReviewRow('Flooding History', _floodingHistory ? 'Yes' : 'No'),
         const Divider(height: 32),
-        const Text('Legal Documents', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primaryLight)),
+        const Text(
+          'Legal Documents',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.primaryLight,
+          ),
+        ),
         const SizedBox(height: 12),
         _buildReviewRow('C of O', _hasCOofO ? 'Available' : 'Not Listed'),
-        _buildReviewRow('Survey Plan', _hasSurveyPlan ? 'Available' : 'Not Listed'),
+        _buildReviewRow(
+          'Survey Plan',
+          _hasSurveyPlan ? 'Available' : 'Not Listed',
+        ),
         _buildReviewRow('Lawyer Verified', _lawyerVerified ? 'Yes' : 'No'),
       ],
     );
@@ -709,7 +1103,13 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
@@ -720,16 +1120,34 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(border: Border.all(color: Colors.grey.withValues(alpha: 0.2)), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(icon: const Icon(LucideIcons.minusCircle), onPressed: value > 0 ? () => onChanged(value - 1) : null),
-                Text('$value', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(LucideIcons.plusCircle), onPressed: () => onChanged(value + 1)),
+                IconButton(
+                  icon: const Icon(LucideIcons.minusCircle),
+                  onPressed: value > 0 ? () => onChanged(value - 1) : null,
+                ),
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.plusCircle),
+                  onPressed: () => onChanged(value + 1),
+                ),
               ],
             ),
           ],
@@ -741,14 +1159,21 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   Widget _buildBottomNav() {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.1)))),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+        ),
+      ),
       child: Row(
         children: [
           if (_currentStep > 0)
             Expanded(
               child: OutlinedButton(
                 onPressed: _prevStep,
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
                 child: const Text('Back'),
               ),
             ),
@@ -762,8 +1187,13 @@ class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: Text(
-                _currentStep == _totalSteps - 1 ? 'Publish Listing' : 'Continue',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                _currentStep == _totalSteps - 1
+                    ? 'Publish Listing'
+                    : 'Continue',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),

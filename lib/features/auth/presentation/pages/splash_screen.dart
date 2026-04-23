@@ -14,7 +14,8 @@ import 'package:swiftspace/features/auth/presentation/pages/no_internet_screen.d
 import 'package:swiftspace/core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
-
+import 'package:swiftspace/main.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_dashboard_screen.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -104,9 +105,14 @@ class _SplashScreenState extends State<SplashScreen>
           Provider.of<AdminProvider>(context, listen: false).fetchAllData();
         }
 
-        final screen = isAdmin
-            ? const OperationsDashboard()
-            : const RoleSelectionScreen();
+        Widget screen;
+        if (isAdmin) {
+          screen = const OperationsDashboard();
+        } else if (role == UserRole.user) {
+          screen = const MainLayout();
+        } else {
+          screen = const ProfessionalDashboardScreen();
+        }
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(

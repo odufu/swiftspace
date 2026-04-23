@@ -402,31 +402,39 @@ class _AppSettingsModal extends StatelessWidget {
           const SizedBox(height: 12),
           Consumer<UserPreferencesProvider>(
             builder: (context, prefs, _) {
-              return SegmentedButton<ExploreViewType>(
-                segments: const [
-                  ButtonSegment(
-                    value: ExploreViewType.grid, 
-                    label: Text('Grid'), 
-                    icon: Icon(LucideIcons.layoutGrid, size: 16),
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<ExploreViewType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ExploreViewType.grid, 
+                      label: Text('Grid'), 
+                      icon: Icon(LucideIcons.layoutGrid, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ExploreViewType.tiktok, 
+                      label: Text('Reels'), 
+                      icon: Icon(LucideIcons.video, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ExploreViewType.map, 
+                      label: Text('Map'), 
+                      icon: Icon(LucideIcons.mapPin, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ExploreViewType.smart, 
+                      label: Text('Smart AI'), 
+                      icon: Icon(LucideIcons.sparkles, size: 16),
+                    ),
+                  ],
+                  selected: {prefs.preferredExploreView},
+                  onSelectionChanged: (Set<ExploreViewType> newSelection) {
+                    prefs.setExploreView(newSelection.first);
+                  },
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: theme.colorScheme.primary,
+                    selectedForegroundColor: Colors.white,
                   ),
-                  ButtonSegment(
-                    value: ExploreViewType.tiktok, 
-                    label: Text('Reels'), 
-                    icon: Icon(LucideIcons.video, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: ExploreViewType.map, 
-                    label: Text('Map'), 
-                    icon: Icon(LucideIcons.mapPin, size: 16),
-                  ),
-                ],
-                selected: {prefs.preferredExploreView},
-                onSelectionChanged: (Set<ExploreViewType> newSelection) {
-                  prefs.setExploreView(newSelection.first);
-                },
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: theme.colorScheme.primary,
-                  selectedForegroundColor: Colors.white,
                 ),
               );
             },

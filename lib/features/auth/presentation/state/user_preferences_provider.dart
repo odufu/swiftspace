@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 
-enum ExploreViewType { grid, tiktok, map }
+enum ExploreViewType { grid, tiktok, map, smart }
 
 class UserPreferencesProvider extends ChangeNotifier {
   double _minPrice = 0;

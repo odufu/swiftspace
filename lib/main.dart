@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -26,7 +27,6 @@ import 'package:swiftspace/features/chat/presentation/state/notification_provide
 import 'package:swiftspace/features/chat/domain/entities/notification.dart';
 import 'package:swiftspace/core/presentation/widgets/common/badge_icon.dart';
 
-
 import 'package:swiftspace/core/services/supabase_service.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/features/auth/data/repositories/auth_repository.dart';
@@ -35,7 +35,10 @@ import 'dart:ui';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
   // Initialize Supabase with basic error handling
   try {
     // Add a timeout to prevent absolute lock on web environments
@@ -47,14 +50,14 @@ void main() async {
 
   // Initialize Dependency Injection
   await initGlobalDI();
-  
+
   // Configure GoogleFonts to allow runtime fetching
   // This prevents the IDE debugger from constantly halting on font-missing Exceptions
   GoogleFonts.config.allowRuntimeFetching = true;
 
   // Global error handler for Flutter frame-work errors
   FlutterError.onError = (details) {
-    if (details.exception.toString().contains('SocketException') || 
+    if (details.exception.toString().contains('SocketException') ||
         details.exception.toString().contains('google_fonts')) {
       debugPrint('Network/Font warning (Handled): ${details.exception}');
       return;
@@ -64,7 +67,7 @@ void main() async {
 
   // Global error handler for asynchronous errors (not caught by Flutter)
   PlatformDispatcher.instance.onError = (error, stack) {
-    if (error.toString().contains('SocketException') || 
+    if (error.toString().contains('SocketException') ||
         error.toString().contains('google_fonts')) {
       debugPrint('Async Network warning (Handled): $error');
       return true;
@@ -73,7 +76,7 @@ void main() async {
   };
 
   sl<AudioManager>().init();
-  
+
   runApp(
     MultiProvider(
       providers: [
@@ -81,8 +84,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
           create: (_) => FavoritesProvider(),
-          update: (_, auth, previous) => (previous ?? FavoritesProvider())
-            ..updateUser(auth.user?.id),
+          update: (_, auth, previous) =>
+              (previous ?? FavoritesProvider())..updateUser(auth.user?.id),
         ),
         ChangeNotifierProvider(create: (_) => UserPreferencesProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
@@ -96,15 +99,16 @@ void main() async {
             Provider.of<PropertyProvider>(context, listen: false),
             sl<AuthRepository>(),
           ),
-          update: (context, propertyProvider, previous) => 
-              previous ?? VerificationProvider(propertyProvider, sl<AuthRepository>()),
+          update: (context, propertyProvider, previous) =>
+              previous ??
+              VerificationProvider(propertyProvider, sl<AuthRepository>()),
         ),
         ChangeNotifierProxyProvider<PropertyProvider, AdminProvider>(
           create: (context) => AdminProvider(
             sl<AuthRepository>(),
             Provider.of<PropertyProvider>(context, listen: false),
           ),
-          update: (context, propertyProvider, previous) => 
+          update: (context, propertyProvider, previous) =>
               previous ?? AdminProvider(sl<AuthRepository>(), propertyProvider),
         ),
       ],
@@ -174,132 +178,150 @@ class _MainLayoutState extends State<MainLayout> {
     final colorScheme = Theme.of(context).colorScheme;
     final prefs = Provider.of<UserPreferencesProvider>(context);
     final isMobile = Responsive.isMobile(context);
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppConstants.appName,
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w900,
-            fontSize: 24,
-            letterSpacing: -1,
-            color: colorScheme.primary,
+
+    return PopScope(
+      canPop: prefs.currentTabIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          prefs.setTabIndex(0);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            AppConstants.appName,
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w900,
+              fontSize: 24,
+              letterSpacing: -1,
+              color: colorScheme.primary,
+            ),
           ),
+          backgroundColor: colorScheme.surface,
+          elevation: 0,
+          actions: [
+            Consumer2<ChatProvider, NotificationProvider>(
+              builder: (context, chat, note, child) {
+                return Row(
+                  children: [
+                    BadgeIcon(
+                      icon: LucideIcons.messageSquare,
+                      count: chat.totalUnreadCount,
+                      onPressed: () {
+                        // Navigate to chat/hub or show popup
+                        prefs.setTabIndex(2); // Goes to Property Hub (Index 2)
+                      },
+                    ),
+                    BadgeIcon(
+                      icon: LucideIcons.bell,
+                      count: note.unreadCount,
+                      onPressed: () {
+                        // Show notification sheet or navigate
+                        _showNotificationSheet(context);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        actions: [
-          Consumer2<ChatProvider, NotificationProvider>(
-            builder: (context, chat, note, child) {
-              return Row(
-                children: [
-                  BadgeIcon(
-                    icon: LucideIcons.messageSquare,
-                    count: chat.totalUnreadCount,
-                    onPressed: () {
-                      // Navigate to chat/hub or show popup
-                      prefs.setTabIndex(2); // Goes to Property Hub (Index 2)
-                    },
+        body: Row(
+          children: [
+            if (!isMobile)
+              NavigationRail(
+                selectedIndex: prefs.currentTabIndex,
+                onDestinationSelected: (index) => prefs.setTabIndex(index),
+                labelType: NavigationRailLabelType.all,
+                backgroundColor: colorScheme.surface,
+                selectedIconTheme: IconThemeData(color: colorScheme.primary),
+                unselectedIconTheme: IconThemeData(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+                selectedLabelTextStyle: TextStyle(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+                unselectedLabelTextStyle: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 10,
+                ),
+                destinations: const [
+                  NavigationRailDestination(
+                    icon: Icon(LucideIcons.compass),
+                    label: Text(AppStrings.navExplore),
                   ),
-                  BadgeIcon(
-                    icon: LucideIcons.bell,
-                    count: note.unreadCount,
-                    onPressed: () {
-                      // Show notification sheet or navigate
-                      _showNotificationSheet(context);
-                    },
+                  NavigationRailDestination(
+                    icon: Icon(LucideIcons.heart),
+                    label: Text(AppStrings.navFavorite),
                   ),
-                  const SizedBox(width: 8),
+                  NavigationRailDestination(
+                    icon: Icon(LucideIcons.layoutDashboard),
+                    label: Text(AppStrings.navHub),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(LucideIcons.landmark),
+                    label: Text(AppStrings.navVault),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(LucideIcons.user),
+                    label: Text(AppStrings.navProfile),
+                  ),
                 ],
-              );
-            },
-          ),
-        ],
-      ),
-      body: Row(
-        children: [
-          if (!isMobile)
-            NavigationRail(
-              selectedIndex: prefs.currentTabIndex,
-              onDestinationSelected: (index) => prefs.setTabIndex(index),
-              labelType: NavigationRailLabelType.all,
-              backgroundColor: colorScheme.surface,
-              selectedIconTheme: IconThemeData(color: colorScheme.primary),
-              unselectedIconTheme: IconThemeData(color: colorScheme.onSurface.withValues(alpha: 0.5)),
-              selectedLabelTextStyle: TextStyle(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
               ),
-              unselectedLabelTextStyle: TextStyle(
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-                fontSize: 10,
+            Expanded(
+              child: IndexedStack(
+                index: prefs.currentTabIndex,
+                children: _screens,
               ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(LucideIcons.compass),
-                  label: Text(AppStrings.navExplore),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(LucideIcons.heart),
-                  label: Text(AppStrings.navFavorite),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(LucideIcons.layoutDashboard),
-                  label: Text(AppStrings.navHub),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(LucideIcons.landmark),
-                  label: Text(AppStrings.navVault),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(LucideIcons.user),
-                  label: Text(AppStrings.navProfile),
-                ),
-              ],
             ),
-          Expanded(
-            child: IndexedStack(
-              index: prefs.currentTabIndex,
-              children: _screens,
-            ),
-          ),
-        ],
+          ],
+        ),
+        bottomNavigationBar: isMobile
+            ? BottomNavigationBar(
+                currentIndex: prefs.currentTabIndex,
+                onTap: (index) => prefs.setTabIndex(index),
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: colorScheme.surface,
+                selectedItemColor: colorScheme.primary,
+                unselectedItemColor: colorScheme.onSurface.withValues(
+                  alpha: 0.5,
+                ),
+                selectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 10,
+                ),
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(LucideIcons.compass),
+                    label: AppStrings.navExplore,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(LucideIcons.heart),
+                    label: AppStrings.navFavorite,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(LucideIcons.layoutDashboard),
+                    label: AppStrings.navHub,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(LucideIcons.landmark),
+                    label: AppStrings.navVault,
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(LucideIcons.user),
+                    label: AppStrings.navProfile,
+                  ),
+                ],
+              )
+            : null,
       ),
-      bottomNavigationBar: isMobile 
-        ? BottomNavigationBar(
-            currentIndex: prefs.currentTabIndex,
-            onTap: (index) => prefs.setTabIndex(index),
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: colorScheme.surface,
-            selectedItemColor: colorScheme.primary,
-            unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 10),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.compass),
-                label: AppStrings.navExplore,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.heart),
-                label: AppStrings.navFavorite,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.layoutDashboard),
-                label: AppStrings.navHub,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.landmark),
-                label: AppStrings.navVault,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(LucideIcons.user),
-                label: AppStrings.navProfile,
-              ),
-            ],
-          )
-        : null,
     );
   }
 
@@ -326,7 +348,10 @@ class _MainLayoutState extends State<MainLayout> {
                       children: [
                         const Text(
                           'Notifications',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         TextButton(
                           onPressed: provider.markAllAsRead,
@@ -350,14 +375,34 @@ class _MainLayoutState extends State<MainLayout> {
                           final n = notes[index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: _getNoteColor(n.type).withValues(alpha: 0.1),
-                              child: Icon(_getNoteIcon(n.type), color: _getNoteColor(n.type), size: 20),
+                              backgroundColor: _getNoteColor(
+                                n.type,
+                              ).withValues(alpha: 0.1),
+                              child: Icon(
+                                _getNoteIcon(n.type),
+                                color: _getNoteColor(n.type),
+                                size: 20,
+                              ),
                             ),
-                            title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
-                            subtitle: Text(n.message, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            title: Text(
+                              n.title,
+                              style: TextStyle(
+                                fontWeight: n.isRead
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              n.message,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             trailing: Text(
                               _formatTime(n.timestamp),
-                              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
                             ),
                             onTap: () => provider.markAsRead(n.id),
                           );
@@ -375,23 +420,35 @@ class _MainLayoutState extends State<MainLayout> {
 
   IconData _getNoteIcon(NotificationType type) {
     switch (type) {
-      case NotificationType.inspection: return LucideIcons.calendar;
-      case NotificationType.offer: return LucideIcons.landmark;
-      case NotificationType.chat: return LucideIcons.messageSquare;
-      case NotificationType.match: return LucideIcons.home;
-      case NotificationType.system: return LucideIcons.info;
-      default: return LucideIcons.bell;
+      case NotificationType.inspection:
+        return LucideIcons.calendar;
+      case NotificationType.offer:
+        return LucideIcons.landmark;
+      case NotificationType.chat:
+        return LucideIcons.messageSquare;
+      case NotificationType.match:
+        return LucideIcons.home;
+      case NotificationType.system:
+        return LucideIcons.info;
+      default:
+        return LucideIcons.bell;
     }
   }
 
   Color _getNoteColor(NotificationType type) {
     switch (type) {
-      case NotificationType.inspection: return Colors.blue;
-      case NotificationType.offer: return Colors.green;
-      case NotificationType.chat: return Colors.orange;
-      case NotificationType.match: return Colors.purple;
-      case NotificationType.system: return Colors.grey;
-      default: return Colors.grey;
+      case NotificationType.inspection:
+        return Colors.blue;
+      case NotificationType.offer:
+        return Colors.green;
+      case NotificationType.chat:
+        return Colors.orange;
+      case NotificationType.match:
+        return Colors.purple;
+      case NotificationType.system:
+        return Colors.grey;
+      default:
+        return Colors.grey;
     }
   }
 

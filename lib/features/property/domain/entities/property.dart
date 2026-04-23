@@ -136,6 +136,16 @@ class Property {
   final int favoritesCount;
   final int videoViewsCount;
   final String? listerId; // Links to auth.users.id
+  final bool isPremium; // Indicates if this is a premium listing locked behind a paywall
+
+  // Document URLs for serious interests
+  final String? coOfOUrl;
+  final String? governorsConsentUrl;
+  final String? surveyPlanUrl;
+  final String? deedOfAssignmentUrl;
+  final String? buildingPlanApprovalUrl;
+  final String? soilTestReportUrl;
+  final String? structuralIntegrityReportUrl;
 
   String get agentName => listerName;
   final int proximityToRoadMeters;
@@ -236,6 +246,14 @@ class Property {
     this.appliesServiceFee = true,
     this.geoFencePoints,
     this.listerId,
+    this.isPremium = false,
+    this.coOfOUrl,
+    this.governorsConsentUrl,
+    this.surveyPlanUrl,
+    this.deedOfAssignmentUrl,
+    this.buildingPlanApprovalUrl,
+    this.soilTestReportUrl,
+    this.structuralIntegrityReportUrl,
   });
 
   Property copyWith({
@@ -296,6 +314,14 @@ class Property {
     VirtualTour? virtualTour,
     List<LatLng>? geoFencePoints,
     String? listerId,
+    bool? isPremium,
+    String? coOfOUrl,
+    String? governorsConsentUrl,
+    String? surveyPlanUrl,
+    String? deedOfAssignmentUrl,
+    String? buildingPlanApprovalUrl,
+    String? soilTestReportUrl,
+    String? structuralIntegrityReportUrl,
   }) {
     return Property(
       id: id ?? this.id,
@@ -355,6 +381,14 @@ class Property {
       virtualTour: virtualTour ?? this.virtualTour,
       geoFencePoints: geoFencePoints ?? this.geoFencePoints,
       listerId: listerId ?? this.listerId,
+      isPremium: isPremium ?? this.isPremium,
+      coOfOUrl: coOfOUrl ?? this.coOfOUrl,
+      governorsConsentUrl: governorsConsentUrl ?? this.governorsConsentUrl,
+      surveyPlanUrl: surveyPlanUrl ?? this.surveyPlanUrl,
+      deedOfAssignmentUrl: deedOfAssignmentUrl ?? this.deedOfAssignmentUrl,
+      buildingPlanApprovalUrl: buildingPlanApprovalUrl ?? this.buildingPlanApprovalUrl,
+      soilTestReportUrl: soilTestReportUrl ?? this.soilTestReportUrl,
+      structuralIntegrityReportUrl: structuralIntegrityReportUrl ?? this.structuralIntegrityReportUrl,
     );
   }
 
@@ -429,6 +463,14 @@ class Property {
         return LatLng((pointMap['lat'] as num).toDouble(), (pointMap['lng'] as num).toDouble());
       }).toList(),
       listerId: map['lister_id'],
+      isPremium: map['is_premium'] ?? false,
+      coOfOUrl: map['co_of_o_url'],
+      governorsConsentUrl: map['governors_consent_url'],
+      surveyPlanUrl: map['survey_plan_url'],
+      deedOfAssignmentUrl: map['deed_of_assignment_url'],
+      buildingPlanApprovalUrl: map['building_plan_approval_url'],
+      soilTestReportUrl: map['soil_test_report_url'],
+      structuralIntegrityReportUrl: map['structural_integrity_report_url'],
     );
   }
 
@@ -491,6 +533,14 @@ class Property {
       'virtual_tour_data': virtualTour?.toMap(),
       'geo_fence_points': geoFencePoints?.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
       'lister_id': listerId,
+      'is_premium': isPremium,
+      'co_of_o_url': coOfOUrl,
+      'governors_consent_url': governorsConsentUrl,
+      'survey_plan_url': surveyPlanUrl,
+      'deed_of_assignment_url': deedOfAssignmentUrl,
+      'building_plan_approval_url': buildingPlanApprovalUrl,
+      'soil_test_report_url': soilTestReportUrl,
+      'structural_integrity_report_url': structuralIntegrityReportUrl,
     };
   }
 }

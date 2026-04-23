@@ -4,6 +4,7 @@ import 'package:swiftspace/features/auth/presentation/state/user_preferences_pro
 import 'package:swiftspace/features/explore/presentation/pages/grid_explore_screen.dart';
 import 'package:swiftspace/features/explore/presentation/pages/tiktok_explore_screen.dart';
 import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/smart_explore_screen.dart';
 
 class MainExploreTab extends StatelessWidget {
   const MainExploreTab({super.key});
@@ -17,8 +18,9 @@ class MainExploreTab extends StatelessWidget {
             return const TikTokExploreScreen();
           case ExploreViewType.map:
             return const MapExploreScreen();
+          case ExploreViewType.smart:
+            return const SmartExploreScreen();
           case ExploreViewType.grid:
-          default:
             return const GridExploreScreen();
         }
       },

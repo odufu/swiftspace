@@ -182,6 +182,13 @@ class PropertyProvider extends ChangeNotifier {
     required String listerId,
     XFile? video,
     XFile? planImage,
+    XFile? coOfOFile,
+    XFile? governorsConsentFile,
+    XFile? surveyPlanFile,
+    XFile? deedOfAssignmentFile,
+    XFile? buildingPlanApprovalFile,
+    XFile? soilTestReportFile,
+    XFile? structuralIntegrityReportFile,
   }) async {
     _isLoading = true;
     _error = null;
@@ -211,9 +218,18 @@ class PropertyProvider extends ChangeNotifier {
         }
       }
 
-      for (var img in images) addOrWait(img);
+      for (var img in images) {
+        addOrWait(img);
+      }
       addOrWait(video, isVideo: true);
       addOrWait(planImage);
+      addOrWait(coOfOFile);
+      addOrWait(governorsConsentFile);
+      addOrWait(surveyPlanFile);
+      addOrWait(deedOfAssignmentFile);
+      addOrWait(buildingPlanApprovalFile);
+      addOrWait(soilTestReportFile);
+      addOrWait(structuralIntegrityReportFile);
 
       // 2. Wait for all relevant uploads to complete
       if (requiredTasks.isNotEmpty) {
@@ -242,6 +258,13 @@ class PropertyProvider extends ChangeNotifier {
         planImageUrl: planUrl,
         verificationStatus: PropertyVerificationStatus.pendingReview,
         listerId: listerId,
+        coOfOUrl: coOfOFile != null ? _uploadedUrls[coOfOFile.path] : null,
+        governorsConsentUrl: governorsConsentFile != null ? _uploadedUrls[governorsConsentFile.path] : null,
+        surveyPlanUrl: surveyPlanFile != null ? _uploadedUrls[surveyPlanFile.path] : null,
+        deedOfAssignmentUrl: deedOfAssignmentFile != null ? _uploadedUrls[deedOfAssignmentFile.path] : null,
+        buildingPlanApprovalUrl: buildingPlanApprovalFile != null ? _uploadedUrls[buildingPlanApprovalFile.path] : null,
+        soilTestReportUrl: soilTestReportFile != null ? _uploadedUrls[soilTestReportFile.path] : null,
+        structuralIntegrityReportUrl: structuralIntegrityReportFile != null ? _uploadedUrls[structuralIntegrityReportFile.path] : null,
       );
 
       await _repository.insertProperty(finalProperty);

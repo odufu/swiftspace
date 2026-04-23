@@ -46,9 +46,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     'Explore surroundings',
   ];
 
+  late bool _isUnlocked;
+
   @override
   void initState() {
     super.initState();
+    _isUnlocked = !widget.property.isPremium;
     _tooltipTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
         setState(() {
@@ -172,10 +175,45 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  void _showPremiumActions() {
-    final theme = Theme.of(context);
-    final isBuy = widget.property.priceTerm == 'buy';
+  Future<void> _bookInspection(BuildContext context) async {
+    final selectedDateTime = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => InspectionDatePicker(property: widget.property),
+    );
 
+    if (selectedDateTime != null && mounted) {
+      final booking = InspectionBooking(
+        id: 'BK-${DateTime.now().millisecondsSinceEpoch}',
+        property: widget.property,
+        dateTime: selectedDateTime,
+        status: BookingStatus.confirmed,
+      );
+
+      if (!mounted) return;
+      Provider.of<BookingProvider>(context, listen: false).addBooking(booking);
+
+      _showMockNotification(
+        'Booking Confirmed!',
+        'Agent ${widget.property.agentName} has been notified for ${booking.formattedDate} at ${booking.formattedTime}.',
+      );
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PropertyManagementScreen(
+            commitment: UnifiedCommitment.fromBooking(booking),
+            isAgent: false,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showUnlockPaywall() {
+    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -189,191 +227,60 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 24),
+              const Icon(LucideIcons.lock, size: 48, color: Colors.amber),
+              const SizedBox(height: 16),
               const Text(
-                'Premium Actions',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Premium Listing',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'Access high-value tools to secure this property.',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                'This is an exclusive premium listing. To view the exact location, direct agent contacts, and to book an inspection, please pay a fully refundable commitment deposit. This ensures only serious buyers engage with premium agents.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14, height: 1.5),
               ),
-              const SizedBox(height: 24),
-
-              // Action 1: Inspection
-              _buildActionTile(
-                icon: LucideIcons.calendar,
-                title: 'Book Inspection',
-                subtitle: 'Schedule a visit at your convenience.',
-                price: 'FREE',
-                color: Colors.teal,
-                onTap: () async {
-                  Navigator.pop(sheetContext); // Close actions sheet
-                  // Show Date/Time Picker first
-                  final selectedDateTime = await showModalBottomSheet<DateTime>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) =>
-                        InspectionDatePicker(property: widget.property),
-                  );
-
-                  if (selectedDateTime != null && mounted) {
-                    // Save booking directly
-                    final booking = InspectionBooking(
-                      id: 'BK-${DateTime.now().millisecondsSinceEpoch}',
-                      property: widget.property,
-                      dateTime: selectedDateTime,
-                      status: BookingStatus.confirmed,
-                    );
-
-                    Provider.of<BookingProvider>(
-                      context,
-                      listen: false,
-                    ).addBooking(booking);
-
-                    // Show a simple snackbar/toast for confirmation
-                    _showMockNotification(
-                      'Booking Confirmed!',
-                      'Agent ${widget.property.agentName} has been notified for ${booking.formattedDate} at ${booking.formattedTime}.',
-                    );
-
-                    // Route immediately to the management hub so the user can chat and track progress
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PropertyManagementScreen(
-                          commitment: UnifiedCommitment.fromBooking(booking),
-                          isAgent: false,
-                        ),
-                      ),
-                    );
-                  }
-                },
-              ),
-
-              // Action 2: Direct Contact
-              _buildActionTile(
-                icon: LucideIcons.userCheck,
-                title: 'Landlord Contact',
-                subtitle: 'Direct communication with the owner.',
-                price: 'FREE',
-                color: const Color(0xFF6C63FF),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _showMockNotification(
-                    'Contact Access Unlocked',
-                    'You can now message the landlord directly in the Property Hub.',
-                  );
-                },
-              ),
-
-              // Action 3: Legal Search (Only for purchase)
-              if (isBuy)
-                _buildActionTile(
-                  icon: LucideIcons.scale,
-                  title: 'Title Legal Search',
-                  subtitle: 'Avoid land scams. Get a verified property report.',
-                  price: 'FREE',
-                  color: const Color(0xFFF7C948),
-                  onTap: () {
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
                     Navigator.pop(sheetContext);
+                    setState(() {
+                      _isUnlocked = true;
+                    });
                     _showMockNotification(
-                      'Search Initiated',
-                      'Our legal team will provide a property report for this listing.',
+                      'Access Unlocked',
+                      'Commitment deposit received. You now have full access to this premium listing.',
                     );
                   },
+                  icon: const Icon(LucideIcons.shieldCheck, size: 20),
+                  label: const Text('Pay Refundable Deposit (Mock)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
-
+              ),
               const SizedBox(height: 16),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildActionTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String price,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                price,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -569,7 +476,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
 
                   // 360 Virtual Tour Overlay
-                  if (p.priceTerm == 'buy')
+                  if (p.has360View)
                     Positioned(
                       top: 100, // Below App Bar
                       right: 16,
@@ -702,7 +609,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                         ],
                                       ),
                                     ),
-                                  if (p.isVerified)
+                                  if (p.isPremium)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -722,15 +629,51 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           const Icon(
-                                            Icons.verified,
+                                            LucideIcons.star,
                                             color: Colors.orange,
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'PREMIUM',
+                                            style: TextStyle(
+                                              color: Colors.orange[800],
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  else if (p.isVerified)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Colors.green,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.verified,
+                                            color: Colors.green,
                                             size: 14,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             'VERIFIED',
                                             style: TextStyle(
-                                              color: Colors.orange[800],
+                                              color: Colors.green[800],
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -790,11 +733,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      p.locationName,
+                                      _isUnlocked ? p.locationName : 'Location Hidden (Premium Listing)',
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
+                                        fontStyle: !_isUnlocked ? FontStyle.italic : FontStyle.normal,
                                       ),
                                     ),
                                   ),
@@ -1207,7 +1151,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      p.agentPhone,
+                                      _isUnlocked 
+                                        ? p.agentPhone 
+                                        : (p.agentPhone.length > 4 ? '${p.agentPhone.substring(0, 4)} ••• ••••' : 'Hidden'),
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 14,
@@ -1217,11 +1163,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(
-                                  LucideIcons.phone,
-                                  color: Colors.green,
+                                icon: Icon(
+                                  _isUnlocked ? LucideIcons.phone : LucideIcons.lock,
+                                  color: _isUnlocked ? Colors.green : Colors.grey,
                                 ),
-                                onPressed: () {},
+                                onPressed: () {
+                                  if (!_isUnlocked) {
+                                    _showUnlockPaywall();
+                                  } else {
+                                    // Make phone call logic here
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -1282,10 +1234,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 ),
                               ),
                               onPressed: () {
-                                _openLocationInGoogleMaps(
-                                  p.location.latitude,
-                                  p.location.longitude,
-                                );
+                                if (!_isUnlocked) {
+                                  _showUnlockPaywall();
+                                } else {
+                                  _openLocationInGoogleMaps(
+                                    p.location.latitude,
+                                    p.location.longitude,
+                                  );
+                                }
                               },
                             ),
                           ),
@@ -1358,6 +1314,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               child: IconButton(
                 icon: const Icon(LucideIcons.messageSquare),
                 onPressed: () {
+                  if (!_isUnlocked) {
+                    _showUnlockPaywall();
+                    return;
+                  }
                   final chatProvider = Provider.of<ChatProvider>(
                     context,
                     listen: false,
@@ -1392,6 +1352,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     context,
                     listen: false,
                   ).getBookingsForProperty(widget.property.id);
+                  
+                  if (!_isUnlocked) {
+                    _showUnlockPaywall();
+                    return;
+                  }
+
                   if (bookings.isNotEmpty) {
                     Navigator.push(
                       context,
@@ -1405,12 +1371,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       ),
                     );
                   } else {
-                    _showPremiumActions();
+                    // Directly open inspection picker now that "Premium Actions" is gone
+                    _bookInspection(context);
                   }
                 },
-                icon: const Icon(LucideIcons.zap, size: 18),
+                icon: Icon(
+                  _isUnlocked ? LucideIcons.calendar : LucideIcons.lock, 
+                  size: 18,
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
+                  backgroundColor: _isUnlocked ? theme.colorScheme.primary : Colors.amber[700],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -1418,9 +1388,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                   elevation: 0,
                 ),
-                label: const Text(
-                  'Take Action',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                label: Text(
+                  _isUnlocked ? 'Book Inspection' : 'Unlock Premium Access',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -1474,12 +1444,16 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             FloatingActionButton.extended(
               heroTag: 'view_in_map_${p.id}',
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MapExploreScreen(initialProperty: p),
-                  ),
-                );
+                if (!_isUnlocked) {
+                  _showUnlockPaywall();
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MapExploreScreen(initialProperty: p),
+                    ),
+                  );
+                }
               },
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
@@ -1514,41 +1488,84 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     IconData icon,
     String title,
     String status,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            status,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+    Color color, {
+    String? url,
+  }) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: (url != null) ? () async {
+        if (!_isUnlocked) {
+          _showUnlockPaywall();
+          return;
+        }
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        }
+      } : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 16),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                  ),
+                  if (url != null)
+                    Text(
+                      _isUnlocked ? 'Tap to view document' : 'Locked • Premium Access Required',
+                      style: TextStyle(
+                        fontSize: 10, 
+                        color: _isUnlocked ? theme.colorScheme.primary : Colors.amber[800],
+                        fontWeight: _isUnlocked ? FontWeight.normal : FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  if (url != null)
+                    Icon(
+                      _isUnlocked ? LucideIcons.externalLink : LucideIcons.lock, 
+                      size: 10, 
+                      color: color
+                    ),
+                  if (url != null) const SizedBox(width: 4),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1632,12 +1649,29 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          if (p.legalDocuments.isNotEmpty) ...[
+          if (p.legalDocuments.isNotEmpty || p.coOfOUrl != null || p.surveyPlanUrl != null) ...[
             const Text(
-              'Documents:',
+              'Available Documents:',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 8),
+            // Custom checklist docs from URLs
+            if (p.coOfOUrl != null)
+              _buildLegalItem(LucideIcons.fileCheck, 'C of O', 'AVAILABLE', Colors.blue, url: p.coOfOUrl),
+            if (p.governorsConsentUrl != null)
+              _buildLegalItem(LucideIcons.fileCheck, 'Governor\'s Consent', 'AVAILABLE', Colors.blue, url: p.governorsConsentUrl),
+            if (p.surveyPlanUrl != null)
+              _buildLegalItem(LucideIcons.map, 'Survey Plan', 'AVAILABLE', Colors.blue, url: p.surveyPlanUrl),
+            if (p.deedOfAssignmentUrl != null)
+              _buildLegalItem(LucideIcons.fileSignature, 'Deed of Assignment', 'AVAILABLE', Colors.blue, url: p.deedOfAssignmentUrl),
+            if (p.buildingPlanApprovalUrl != null)
+              _buildLegalItem(LucideIcons.clipboardCheck, 'Building Plan Approval', 'AVAILABLE', Colors.blue, url: p.buildingPlanApprovalUrl),
+            if (p.soilTestReportUrl != null)
+              _buildLegalItem(LucideIcons.fileText, 'Soil Test Report', 'AVAILABLE', Colors.blue, url: p.soilTestReportUrl),
+            if (p.structuralIntegrityReportUrl != null)
+              _buildLegalItem(LucideIcons.shieldCheck, 'Structural Report', 'AVAILABLE', Colors.blue, url: p.structuralIntegrityReportUrl),
+              
+            // Legacy/Admin verified documents
             ...p.legalDocuments.map(
               (doc) => Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
@@ -1650,6 +1684,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       : (doc.status == LegalDocumentStatus.rejected
                             ? Colors.red
                             : Colors.grey),
+                  url: doc.url,
                 ),
               ),
             ),
@@ -2261,7 +2296,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           height: 64,
           child: ElevatedButton.icon(
             icon: const Icon(LucideIcons.messageSquare),
-            onPressed: _showPremiumActions,
+            onPressed: () {
+              if (!_isUnlocked) {
+                _showUnlockPaywall();
+              } else {
+                _bookInspection(context);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,

@@ -31,8 +31,15 @@ class MediaPickerComponent extends StatefulWidget {
 class _MediaPickerComponentState extends State<MediaPickerComponent> {
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImages() async {
-    final pickedFiles = await _picker.pickMultiImage();
+  Future<void> _pickImages(ImageSource source) async {
+    List<XFile> pickedFiles = [];
+    if (source == ImageSource.gallery) {
+      pickedFiles = await _picker.pickMultiImage();
+    } else {
+      final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+      if (pickedFile != null) pickedFiles.add(pickedFile);
+    }
+
     if (pickedFiles.isNotEmpty) {
       final newImages = [...widget.images, ...pickedFiles];
       if (newImages.length > 30) {
@@ -57,8 +64,8 @@ class _MediaPickerComponentState extends State<MediaPickerComponent> {
     }
   }
 
-  Future<void> _pickVideo() async {
-    final pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
+  Future<void> _pickVideo(ImageSource source) async {
+    final pickedFile = await _picker.pickVideo(source: source);
     if (pickedFile != null) {
       final size = await pickedFile.length();
       if (size > 100 * 1024 * 1024) {
@@ -71,6 +78,61 @@ class _MediaPickerComponentState extends State<MediaPickerComponent> {
         sl<AudioManager>().playSuccess(context);
       }
     }
+  }
+
+  void _showPickerOptions({required bool isVideo}) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: Icon(
+              isVideo ? LucideIcons.image : LucideIcons.image,
+              color: AppColors.primaryLight,
+            ),
+            title: const Text('Choose from Gallery'),
+            onTap: () {
+              Navigator.pop(context);
+              if (isVideo) {
+                _pickVideo(ImageSource.gallery);
+              } else {
+                _pickImages(ImageSource.gallery);
+              }
+            },
+          ),
+          ListTile(
+            leading: Icon(
+              isVideo ? LucideIcons.video : LucideIcons.camera,
+              color: AppColors.primaryLight,
+            ),
+            title: Text(isVideo ? 'Capture with Camera' : 'Take a Photo'),
+            onTap: () {
+              Navigator.pop(context);
+              if (isVideo) {
+                _pickVideo(ImageSource.camera);
+              } else {
+                _pickImages(ImageSource.camera);
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
   }
 
   @override
@@ -87,7 +149,11 @@ class _MediaPickerComponentState extends State<MediaPickerComponent> {
             itemCount: widget.images.length + 1,
             itemBuilder: (context, index) {
               if (index == widget.images.length) {
-                return _buildAddButton(_pickImages, LucideIcons.camera, 'Add Photo');
+                return _buildAddButton(
+                  () => _showPickerOptions(isVideo: false),
+                  LucideIcons.camera,
+                  'Add Photo',
+                );
               }
               return _buildImagePreview(index);
             },
@@ -105,7 +171,11 @@ class _MediaPickerComponentState extends State<MediaPickerComponent> {
         _buildSectionHeader('Video Walkthrough (Max 1)', widget.video == null ? '0/1' : '1/1'),
         const SizedBox(height: 12),
         widget.video == null
-            ? _buildAddButton(_pickVideo, LucideIcons.video, 'Upload Video (Max 100MB)')
+            ? _buildAddButton(
+                () => _showPickerOptions(isVideo: true),
+                LucideIcons.video,
+                'Upload Video (Max 100MB)',
+              )
             : _buildVideoPreview(),
       ],
     );

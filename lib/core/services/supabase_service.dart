@@ -1,9 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SupabaseService {
-  static const String supabaseUrl = 'https://krwkcilbitlsbivkcuns.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtyd2tjaWxiaXRsc2JpdmtjdW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzIzMTAsImV4cCI6MjA5MTg0ODMxMH0.KWC6lP-fm5DYCQngG64zFDlj67Q3WpClGiBVM2XFPyA';
+  static String get supabaseUrl => dotenv.get('SUPABASE_URL');
+  static String get supabaseAnonKey => dotenv.get('SUPABASE_ANON_KEY');
 
   static Future<void> initialize() async {
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);

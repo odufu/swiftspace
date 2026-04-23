@@ -76,6 +76,7 @@ class _TikTokFeedItem extends StatefulWidget {
 class _TikTokFeedItemState extends State<_TikTokFeedItem> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
+  bool _isMuted = false;
 
   @override
   void initState() {
@@ -89,7 +90,7 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
     _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.property.videoUrl!));
     await _videoController!.initialize();
     _videoController!.setLooping(true);
-    _videoController!.setVolume(0.0); // Muted by default like IG Reels
+    _videoController!.setVolume(_isMuted ? 0.0 : 1.0);
     if (mounted) {
       setState(() {
         _isVideoInitialized = true;
@@ -175,13 +176,25 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                       ),
                    ),
                    const SizedBox(width: 8),
-                   if (widget.property.hasLawyerVerifiedTerms)
+                   if (widget.property.isPremium)
                      Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
                         child: const Row(
                           children: [
-                            Icon(LucideIcons.shieldCheck, color: Colors.white, size: 10),
+                            Icon(LucideIcons.star, color: Colors.white, size: 10),
+                            SizedBox(width: 4),
+                            Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ]
+                        ),
+                     )
+                   else if (widget.property.isVerified)
+                     Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.verified, color: Colors.white, size: 10),
                             SizedBox(width: 4),
                             Text('VERIFIED', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                           ]
@@ -286,6 +299,29 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Mute Button
+              if (_videoController != null && _isVideoInitialized)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isMuted = !_isMuted;
+                      _videoController!.setVolume(_isMuted ? 0.0 : 1.0);
+                    });
+                  },
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
+                        child: Icon(_isMuted ? LucideIcons.volumeX : LucideIcons.volume2, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(_isMuted ? 'Muted' : 'Sound', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),

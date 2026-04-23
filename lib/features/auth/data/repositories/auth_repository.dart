@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -10,12 +12,19 @@ import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
 
-  // Native Google Sign-In instance
-  // Native Google Sign-In instance
-  final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn(
-    clientId: '764650338782-krwkcilbitlsbivkcuns.apps.googleusercontent.com', // Web Client ID
-    serverClientId: '764650338782-krwkcilbitlsbivkcuns.apps.googleusercontent.com',
-  );
+  // Native Google Sign-In helper
+  bool _googleSignInInitialized = false;
+  final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    
+    await _googleSignIn.initialize(
+      clientId: dotenv.get('GOOGLE_WEB_CLIENT_ID'),
+      serverClientId: dotenv.get('GOOGLE_WEB_CLIENT_ID'), // serverClientId must be the Web Client ID on Android
+    );
+    _googleSignInInitialized = true;
+  }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
@@ -61,20 +70,23 @@ class AuthRepository {
       }
 
       // Native Google Sign-In for Mobile (v7.0.0+ API)
+      await _ensureGoogleSignInInitialized();
       final google_sign_in.GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
       if (googleUser == null) return; // User cancelled
 
       final google_sign_in.GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      final String idToken = googleAuth.idToken!;
+      final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
-        throw AppException('No ID Token found from Google Sign-In.');
+        throw AppException(
+          'Google Sign-In failed: No ID Token received. Check SHA-1 registration and Web Client ID configuration.',
+          code: 'no_id_token',
+        );
       }
 
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
-        // accessToken is optional for Supabase when using ID token
       );
     } catch (e) {
       if (e is AppException) rethrow;

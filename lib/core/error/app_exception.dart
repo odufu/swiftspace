@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppException implements Exception {
@@ -38,6 +40,8 @@ class AppException implements Exception {
       return _handleAuthException(error);
     } else if (error is StorageException) {
       return _handleStorageException(error);
+    } else if (error is PlatformException) {
+      return _handlePlatformException(error);
     }
 
     return AppException(
@@ -92,6 +96,20 @@ class AppException implements Exception {
           'Storage error: The "avatars" bucket does not exist. Please create it in your Supabase dashboard.';
     }
     return AppException(message, code: error.statusCode, originalError: error);
+  }
+
+  static AppException _handlePlatformException(PlatformException error) {
+    String message = 'System error: ${error.message}';
+    if (error.code == '10') {
+      message =
+          'Developer error (10): Google Sign-In failed. This usually means the SHA-1 fingerprint is not registered in the Google Cloud Console or the Web Client ID is incorrect.';
+    } else if (error.code == '12500') {
+      message = 'Google Sign-In failed (12500). Please try again.';
+    } else if (error.code == 'network_error' || error.code == '7') {
+      message =
+          'Network error during Google Sign-In. Please check your connection.';
+    }
+    return AppException(message, code: error.code, originalError: error);
   }
 
   @override

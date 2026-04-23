@@ -61,7 +61,14 @@ class _ProfessionalDashboardScreenState
       return _buildPendingVerificationScreen(theme);
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _onTabTapped(0);
+        }
+      },
+      child: Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: Column(
@@ -135,6 +142,7 @@ class _ProfessionalDashboardScreenState
         ],
       ),
       bottomNavigationBar: _buildBottomNav(theme, isDark),
+      ),
     );
   }
 
