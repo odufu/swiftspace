@@ -44,8 +44,16 @@ class PropertyProvider extends ChangeNotifier {
     return _properties.where((p) => p.listerId == listerId).toList();
   }
   
-  List<Property> get liveProperties => _properties.where((p) => !p.isTest).toList();
+  List<Property> get liveProperties {
+    final live = _properties.where((p) => !p.isTest).toList();
+    // Fall back to mock/test data when no real properties are loaded yet
+    // (e.g. backend unavailable, empty table, or still in development)
+    if (live.isEmpty) return _properties;
+    return live;
+  }
+
   List<Property> get testProperties => _properties.where((p) => p.isTest).toList();
+
 
   // Statistics for the dashboard
   int get totalProperties => _properties.length;

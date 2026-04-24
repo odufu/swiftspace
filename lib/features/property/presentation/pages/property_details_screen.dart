@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/explore/presentation/state/favorites_provider.dart';
@@ -18,7 +18,7 @@ import 'package:swiftspace/features/chat/presentation/pages/chat_detail_screen.d
 import 'package:swiftspace/features/booking/presentation/pages/inspection_management_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
-import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
+
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
 import 'package:swiftspace/core/utils/responsive.dart';
@@ -74,30 +74,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     super.dispose();
   }
 
-  Widget _buildMetricBadge(IconData icon, String label, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Future<void> _openLocationInGoogleMaps(double lat, double lng) async {
     final url = Uri.parse(
@@ -108,7 +85,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
-  void _showMockNotification(String title, String body) {
+  void _showToast(String title, String body, {bool isSuccess = true}) {
     if (!mounted) return;
     final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -120,17 +97,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         content: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                color: Colors.black.withValues(alpha: 0.15),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
             border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              color: isSuccess
+                  ? Colors.green.withValues(alpha: 0.3)
+                  : Colors.amber.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -138,33 +117,29 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  color: (isSuccess ? Colors.green : Colors.amber)
+                      .withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  LucideIcons.bell,
-                  color: theme.colorScheme.primary,
+                  isSuccess ? LucideIcons.checkCircle : LucideIcons.bell,
+                  color: isSuccess ? Colors.green : Colors.amber[700],
                   size: 20,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 2),
-                    Text(
-                      body,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
+                    Text(body,
+                        style:
+                            TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -176,6 +151,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Future<void> _bookInspection(BuildContext context) async {
+    // Capture context-dependent references before the async gap
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    final navigator = Navigator.of(context);
+
     final selectedDateTime = await showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: true,
@@ -191,17 +170,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         status: BookingStatus.confirmed,
       );
 
-      if (!mounted) return;
-      Provider.of<BookingProvider>(context, listen: false).addBooking(booking);
-
-      _showMockNotification(
-        'Booking Confirmed!',
-        'Agent ${widget.property.agentName} has been notified for ${booking.formattedDate} at ${booking.formattedTime}.',
+      bookingProvider.addBooking(booking);
+      _showToast(
+        'Inspection Booked!',
+        'Agent ${widget.property.agentName} has been notified.',
       );
 
-      if (!mounted) return;
-      Navigator.push(
-        context,
+      navigator.push(
         MaterialPageRoute(
           builder: (_) => PropertyManagementScreen(
             commitment: UnifiedCommitment.fromBooking(booking),
@@ -212,77 +187,281 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
+
   void _showUnlockPaywall() {
     final theme = Theme.of(context);
+    final p = widget.property;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetContext) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        int selectedMethod = 0; // 0=Card, 1=Transfer, 2=USSD
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              const SizedBox(height: 24),
-              const Icon(LucideIcons.lock, size: 48, color: Colors.amber),
-              const SizedBox(height: 16),
-              const Text(
-                'Premium Listing',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(32)),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'This is an exclusive premium listing. To view the exact location, direct agent contacts, and to book an inspection, please pay a fully refundable commitment deposit. This ensures only serious buyers engage with premium agents.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14, height: 1.5),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    setState(() {
-                      _isUnlocked = true;
-                    });
-                    _showMockNotification(
-                      'Access Unlocked',
-                      'Commitment deposit received. You now have full access to this premium listing.',
-                    );
-                  },
-                  icon: const Icon(LucideIcons.shieldCheck, size: 20),
-                  label: const Text('Pay Refundable Deposit (Mock)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB300), Color(0xFFF57C00)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(LucideIcons.lock,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Unlock Full Access',
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              p.title,
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // What you unlock
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.colorScheme.primary
+                              .withValues(alpha: 0.1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'You\'ll instantly unlock:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: theme.colorScheme.primary),
+                        ),
+                        const SizedBox(height: 12),
+                        ...[
+                          (LucideIcons.mapPin, 'Exact address & Google Maps link'),
+                          (LucideIcons.phone, 'Direct agent phone & WhatsApp'),
+                          (LucideIcons.fileKey2, 'Legal documents & Due Diligence Vault'),
+                          (LucideIcons.calendar, 'Book a physical inspection'),
+                        ].map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              children: [
+                                Icon(item.$1,
+                                    size: 16,
+                                    color: theme.colorScheme.primary),
+                                const SizedBox(width: 10),
+                                Text(item.$2,
+                                    style: const TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Deposit amount
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Commitment Deposit',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('100% refundable if no deal is made',
+                              style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                      const Text(
+                        '₦5,000',
+                        style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF57C00)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Payment method selector
+                  const Text('Pay with',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildPaymentChip(0, 'Card', LucideIcons.creditCard,
+                          selectedMethod, (v) {
+                        setModalState(() => selectedMethod = v);
+                      }),
+                      const SizedBox(width: 10),
+                      _buildPaymentChip(1, 'Bank Transfer', LucideIcons.building,
+                          selectedMethod, (v) {
+                        setModalState(() => selectedMethod = v);
+                      }),
+                      const SizedBox(width: 10),
+                      _buildPaymentChip(
+                          2, 'USSD', LucideIcons.smartphone, selectedMethod,
+                          (v) {
+                        setModalState(() => selectedMethod = v);
+                      }),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Pay button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        setState(() => _isUnlocked = true);
+                        _showToast(
+                          'ðŸ”“ Access Unlocked!',
+                          'Deposit received. You now have full access to this listing.',
+                        );
+                      },
+                      icon: const Icon(LucideIcons.shieldCheck, size: 20),
+                      label: const Text(
+                        'Pay â‚¦5,000 â€” Unlock Now',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF57C00),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Text(
+                      'Secured by SwiftSpace Â· 256-bit encrypted',
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
+
+  Widget _buildPaymentChip(int value, String label, IconData icon,
+      int selected, ValueChanged<int> onSelect) {
+    final isSelected = value == selected;
+    final theme = Theme.of(context);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onSelect(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                : theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 18,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : Colors.grey[600]),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -475,54 +654,88 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                   ),
 
-                  // 360 Virtual Tour Overlay
-                  if (p.has360View)
-                    Positioned(
-                      top: 100, // Below App Bar
-                      right: 16,
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => VirtualWalkthroughScreen(property: p),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                LucideIcons.scan,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                '360° Tour',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
+                  // Media Controls Overlay (Video & 360 Tour)
+                  Positioned(
+                    bottom: 72, // above the image counter
+                    left: 16,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (p.hasVideo && p.videoUrl != null)
+                          GestureDetector(
+                            onTap: () {
+                              context
+                                  .read<PropertyProvider>()
+                                  .incrementVideoViews(p.id);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      VideoPlayerScreen(videoUrl: p.videoUrl!),
                                 ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(25),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(LucideIcons.play,
+                                      color: Colors.white, size: 16),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Watch Video',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        if (p.has360View) ...[
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      VirtualWalkthroughScreen(property: p),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.3)),
+                              ),
+                              child: const Icon(LucideIcons.scan,
+                                  color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
@@ -532,221 +745,66 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
+                  top: Radius.circular(28),
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Block
+
+                    // â”€â”€ TIER 1: FREE â€” Property Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // Badges row
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildBadge(
+                          p.type.name.toUpperCase(),
+                          theme.colorScheme.primary.withValues(alpha: 0.12),
+                          theme.colorScheme.primary,
+                        ),
+                        if (p.priceTerm == 'buy')
+                          _buildBadge(
+                            'FOR SALE',
+                            Colors.teal.withValues(alpha: 0.12),
+                            Colors.teal,
+                            icon: LucideIcons.home,
+                          ),
+                        if (p.isPremium)
+                          _buildBadge(
+                            'PREMIUM',
+                            Colors.amber.withValues(alpha: 0.15),
+                            Colors.orange[800]!,
+                            icon: LucideIcons.star,
+                          )
+                        else if (p.isVerified)
+                          _buildBadge(
+                            'VERIFIED',
+                            Colors.green.withValues(alpha: 0.12),
+                            Colors.green[700]!,
+                            icon: Icons.verified,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Title + Price row
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary
-                                          .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      p.type.name.toUpperCase(),
-                                      style: TextStyle(
-                                        color: theme.colorScheme.primary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  if (p.priceTerm == 'buy')
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.teal.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: Colors.teal,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            LucideIcons.home,
-                                            color: Colors.teal,
-                                            size: 13,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Text(
-                                            'FOR SALE',
-                                            style: TextStyle(
-                                              color: Colors.teal,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (p.isPremium)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: Colors.amber,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            LucideIcons.star,
-                                            color: Colors.orange,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'PREMIUM',
-                                            style: TextStyle(
-                                              color: Colors.orange[800],
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  else if (p.isVerified)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: Colors.green,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.verified,
-                                            color: Colors.green,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'VERIFIED',
-                                            style: TextStyle(
-                                              color: Colors.green[800],
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Consumer<PropertyProvider>(
-                                builder: (context, provider, _) {
-                                  final sp =
-                                      provider.getPropertyById(
-                                        widget.property.id,
-                                      ) ??
-                                      widget.property;
-                                  return Row(
-                                    children: [
-                                      _buildMetricBadge(
-                                        LucideIcons.eye,
-                                        '${sp.viewsCount}',
-                                        theme,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildMetricBadge(
-                                        LucideIcons.heart,
-                                        '${sp.favoritesCount}',
-                                        theme,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _buildMetricBadge(
-                                        LucideIcons.playCircle,
-                                        '${sp.videoViewsCount}',
-                                        theme,
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                p.title,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Icon(
-                                    LucideIcons.mapPin,
-                                    size: 16,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      _isUnlocked ? p.locationName : 'Location Hidden (Premium Listing)',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        fontStyle: !_isUnlocked ? FontStyle.italic : FontStyle.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          child: Text(
+                            p.title,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              height: 1.2,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -756,532 +814,565 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                 color: p.priceTerm == 'buy'
                                     ? Colors.teal
                                     : theme.colorScheme.primary,
-                                fontSize: 24,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             if (p.priceTerm.isNotEmpty && p.priceTerm != 'buy')
                               Text(
-                                'per ${p.priceTerm == 'mo'
-                                    ? 'month'
-                                    : p.priceTerm == 'wk'
-                                    ? 'week'
-                                    : p.priceTerm}',
+                                'per ${p.priceTerm == 'mo' ? 'month' : p.priceTerm == 'wk' ? 'week' : p.priceTerm}',
                                 style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              )
-                            else if (p.priceTerm == 'buy')
-                              Text(
-                                'Outright Purchase',
-                                style: TextStyle(
-                                  color: Colors.teal[700],
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                    color: Colors.grey[600], fontSize: 12),
                               ),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
 
-                    // Quick Stats
+                    // Location row (blurred if locked)
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildFeatureIcon(
-                          LucideIcons.bedDouble,
-                          '${p.beds} Beds',
-                          theme,
-                        ),
-                        _buildFeatureIcon(
-                          LucideIcons.bath,
-                          '${p.baths} Baths',
-                          theme,
-                        ),
-                        _buildFeatureIcon(
-                          LucideIcons.maximize,
-                          p.totalSquareFootage != null ? '${p.totalSquareFootage!.toStringAsFixed(0)} sqft' : 'N/A',
-                          theme,
+                        Icon(LucideIcons.mapPin,
+                            size: 15,
+                            color: _isUnlocked
+                                ? theme.colorScheme.primary
+                                : Colors.grey),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _isUnlocked
+                                ? p.locationName
+                                : 'Location hidden â€” unlock to reveal',
+                            style: TextStyle(
+                              color: _isUnlocked
+                                  ? Colors.grey[600]
+                                  : Colors.grey[400],
+                              fontSize: 13,
+                              fontStyle: _isUnlocked
+                                  ? FontStyle.normal
+                                  : FontStyle.italic,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 20),
 
-                    // Media Chips
-                    if (p.hasVideo ||
-                        p.has360View ||
-                        p.planImageUrl != null) ...[
-                      const Text(
-                        'Media & Plans',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    // Key Stats card
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.08)),
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          if (p.hasVideo && p.videoUrl != null)
-                            _buildMediaChip(
-                              LucideIcons.video,
-                              'Video Tour',
-                              Colors.red,
-                              theme,
-                              onTap: () {
-                                context
-                                    .read<PropertyProvider>()
-                                    .incrementVideoViews(p.id);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => VideoPlayerScreen(
-                                      videoUrl: p.videoUrl!,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          if (p.has360View && p.panoramaUrl != null)
-                            _buildMediaChip(
-                              LucideIcons.rotateCcw,
-                              '360° View',
-                              Colors.blue,
-                              theme,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const VirtualWalkthroughScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          if (p.planImageUrl != null)
-                            _buildMediaChip(
-                              LucideIcons.map,
-                              'Floor Plan',
-                              Colors.purple,
-                              theme,
-                            ),
+                          _buildStatItem(
+                              LucideIcons.bedDouble, '${p.beds}', 'Beds', theme),
+                          _buildDividerLine(),
+                          _buildStatItem(
+                              LucideIcons.bath, '${p.baths}', 'Baths', theme),
+                          _buildDividerLine(),
+                          _buildStatItem(
+                              LucideIcons.maximize,
+                              p.totalSquareFootage != null
+                                  ? p.totalSquareFootage!.toStringAsFixed(0)
+                                  : 'N/A',
+                              'sqft',
+                              theme),
                         ],
                       ),
-                      const SizedBox(height: 32),
-                    ],
-
-                    // Amenities Wrap
-                    const Text(
-                      'Amenities',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
+
+                    // Description
+                    const Text('About this Property',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(
+                      p.description,
+                      style: const TextStyle(
+                          fontSize: 14, height: 1.6, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Amenities
+                    const Text('Amenities',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: p.amenities.map((a) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                              horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.2),
-                            ),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.2)),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(
-                            a,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          child: Text(a,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w500)),
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Overview
-                    const Text(
-                      'Overview',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      p.description,
-                      style: const TextStyle(fontSize: 15, height: 1.5),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Building Specs & Vital Signs
-                    const Text(
-                      'Structure & Vital Signs',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildDetailRow(LucideIcons.calendar, 'Year Built', p.yearBuilt?.toString() ?? 'N/A'),
-                          _buildDetailRow(LucideIcons.construction, 'Foundation', p.foundationType ?? 'Standard'),
-                          _buildDetailRow(LucideIcons.waves, 'Flooding History', p.floodingHistory ? 'History Flagged' : 'None Reported', valueColor: p.floodingHistory ? Colors.red : Colors.green),
-                          const Divider(height: 24),
-                          _buildDetailRow(LucideIcons.zap, 'Avg. Electricity', '${p.electricitySupplyHours.toInt()} hrs/day'),
-                          _buildDetailRow(LucideIcons.map, 'Road Distance', '${p.proximityToRoadMeters} meters'),
-                          _buildDetailRow(LucideIcons.activity, 'Nearest Hospital', '${p.proximityToHospitalKm.toStringAsFixed(1)} km'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Legal & Documents Section
-                    const Text(
-                      'Legal & Authenticity',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.05,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (p.legalDocuments.isEmpty && !p.hasCertificateOfOccupancy && !p.hasSurveyPlan)
-                            _buildLegalItem(
-                              LucideIcons.fileQuestion,
-                              'Standard Documentation',
-                              'Being Verified',
-                              Colors.grey,
-                            )
-                          else ...[
-                            if (p.hasCertificateOfOccupancy)
-                              _buildLegalItem(LucideIcons.scrollText, 'Cert. of Occupancy', 'AVAILABLE', Colors.green),
-                            if (p.hasGovernorsConsent)
-                              _buildLegalItem(LucideIcons.fileCheck, 'Governor\'s Consent', 'AVAILABLE', Colors.green),
-                            if (p.hasSurveyPlan)
-                              _buildLegalItem(LucideIcons.map, 'Survey Plan', 'AVAILABLE', Colors.green),
-                            if (p.hasBuildingPlanApproval)
-                              _buildLegalItem(LucideIcons.building, 'Building Approval', 'AVAILABLE', Colors.green),
-                            
-                            ...p.legalDocuments.map(
-                              (doc) => Padding(
-                                padding: const EdgeInsets.only(top: 12.0),
-                                child: _buildLegalItem(
-                                  doc.title.contains('Survey')
-                                      ? LucideIcons.map
-                                      : doc.title.contains('Deed')
-                                      ? LucideIcons.fileSignature
-                                      : LucideIcons.scrollText,
-                                  doc.title,
-                                  doc.isVerified ? 'Verified' : 'Pending',
-                                  doc.isVerified ? Colors.green : Colors.orange,
-                                ),
-                              ),
-                            ),
-                          ],
-
-                          if (p.hasLawyerVerifiedTerms) ...[
-                            const Divider(height: 24),
-                            _buildLegalItem(
-                              LucideIcons.shieldCheck,
-                              'Lawyer Verified Terms',
-                              'AUTHENTIC',
-                              Colors.teal,
-                            ),
-                          ],
-
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showTermsModal(context, p),
-                              icon: const Icon(LucideIcons.gavel, size: 16),
-                              label: const Text(
-                                'Read Lawyer\'s Terms & Conditions',
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Agent Block (Monetization 1)
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                        border: Border.all(
-                          color: theme.dividerColor.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Listed By',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              if (p.listerType ==
-                                      ListerType.realEstateCompany &&
-                                  p.listerLogoUrl != null)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CachedNetworkImage(
-                                    imageUrl: p.listerLogoUrl!,
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              else
-                                CircleAvatar(
-                                  radius: 25,
-                                  backgroundColor: theme.colorScheme.primary
-                                      .withValues(alpha: 0.2),
-                                  child: Icon(
-                                    LucideIcons.user,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            (p.listerType ==
-                                                    ListerType.realEstateCompany
-                                                ? (p.companyName ?? p.agentName)
-                                                : p.agentName),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (p.listerType ==
-                                            ListerType.realEstateCompany)
-                                          Container(
-                                            margin: const EdgeInsets.only(
-                                              left: 4,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.amber.withValues(
-                                                alpha: 0.2,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              'PREMIUM',
-                                              style: TextStyle(
-                                                color: Colors.amber,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _isUnlocked 
-                                        ? p.agentPhone 
-                                        : (p.agentPhone.length > 4 ? '${p.agentPhone.substring(0, 4)} ••• ••••' : 'Hidden'),
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  _isUnlocked ? LucideIcons.phone : LucideIcons.lock,
-                                  color: _isUnlocked ? Colors.green : Colors.grey,
-                                ),
-                                onPressed: () {
-                                  if (!_isUnlocked) {
-                                    _showUnlockPaywall();
-                                  } else {
-                                    // Make phone call logic here
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildDueDiligenceVault(p, theme),
-                    // ── HOW TO OWN: only for 'buy' listings ─────────────────
-                    if (p.priceTerm == 'buy') ...[
-                      const SizedBox(height: 32),
-                      HomeOwnershipOptionsWidget(property: p),
-                    ],
                     const SizedBox(height: 24),
 
-                    // 3D Map & Sharing Block (Monetization 2)
+                    // Lister Preview (free â€” name + avatar only)
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      margin: const EdgeInsets.only(top: 24),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: theme.dividerColor.withValues(alpha: 0.12)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3)),
                         ],
-                        border: Border.all(
-                          color: theme.dividerColor.withValues(alpha: 0.1),
-                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          const Text(
-                            'Live 3D Map & Transport',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor:
+                                theme.colorScheme.primary.withValues(alpha: 0.12),
+                            child: Icon(LucideIcons.user,
+                                color: theme.colorScheme.primary),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.agentName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15),
+                                ),
+                                Text(
+                                  _isUnlocked ? 'Listed Agent' : 'Contact hidden â€” unlock to call',
+                                  style: TextStyle(
+                                      color: Colors.grey[500], fontSize: 12),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              icon: const Icon(LucideIcons.map, size: 18),
-                              label: const Text('Open in Google Maps (3D)'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                          if (_isUnlocked)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildContactIcon(
+                                    LucideIcons.phone, Colors.green, () {}),
+                                const SizedBox(width: 8),
+                                _buildContactIcon(
+                                    LucideIcons.messageCircle, Colors.teal,
+                                    () {
+                                  final chatProvider =
+                                      Provider.of<ChatProvider>(context,
+                                          listen: false);
+                                  chatProvider.createRoom(
+                                      p.id,
+                                      p.title,
+                                      p.imagesGallery.isNotEmpty
+                                          ? p.imagesGallery.first
+                                          : p.imageUrl,
+                                      p.agentName);
+                                  final room =
+                                      chatProvider.getRoomByProperty(p.id);
+                                  if (room != null) {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                ChatDetailScreen(roomId: room.id)));
+                                  }
+                                }),
+                              ],
+                            )
+                          else
+                            GestureDetector(
+                              onTap: _showUnlockPaywall,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.amber.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
                                 ),
-                                foregroundColor: Colors.blue[700],
-                                side: BorderSide(color: Colors.blue[700]!),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                                child: const Icon(LucideIcons.lock,
+                                    color: Colors.amber, size: 18),
                               ),
-                              onPressed: () {
-                                if (!_isUnlocked) {
-                                  _showUnlockPaywall();
-                                } else {
-                                  _openLocationInGoogleMaps(
-                                    p.location.latitude,
-                                    p.location.longitude,
-                                  );
-                                }
-                              },
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              icon: const Icon(LucideIcons.share2, size: 18),
-                              label: const Text(
-                                'Share to Uber, Bolt, WhatsApp...',
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () async {
-                                try {
-                                  await SharePlus.instance.share(
-                                    ShareParams(
-                                      text:
-                                          'Check out this property: ${p.title}\n${p.locationName}\n\nDownload SwiftSpace to view more!',
-                                      subject: 'SwiftSpace Property Share',
-                                    ),
-                                  );
-                                } catch (e) {
-                                  debugPrint('Error sharing: $e');
-                                }
-                              },
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 120), // padding for bottom bar
+                    const SizedBox(height: 24),
+
+                    // â”€â”€ TIER 2: PREMIUM GATE CARD (locked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    if (p.isPremium && !_isUnlocked) ...[
+                      Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            // Background glow
+                            Positioned(
+                              top: -30,
+                              right: -30,
+                              child: Container(
+                                width: 150,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFFF57C00)
+                                      .withValues(alpha: 0.15),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(22),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF57C00)
+                                              .withValues(alpha: 0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(LucideIcons.lock,
+                                            color: Color(0xFFF57C00),
+                                            size: 20),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Premium Access Required',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            Text(
+                                              'Refundable commitment deposit',
+                                              style: TextStyle(
+                                                  color: Color(0xFFFFB74D),
+                                                  fontSize: 11),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // What's locked
+                                  ...[
+                                    (LucideIcons.mapPin,
+                                        'Exact address & neighbourhood map'),
+                                    (LucideIcons.phone,
+                                        'Direct agent phone & WhatsApp'),
+                                    (LucideIcons.fileKey2,
+                                        'Legal documents & Due Diligence Vault'),
+                                    (LucideIcons.calendar,
+                                        'Book a physical inspection'),
+                                  ].map(
+                                    (item) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10),
+                                      child: Row(
+                                        children: [
+                                          Icon(item.$1,
+                                              size: 15,
+                                              color: const Color(0xFFF57C00)),
+                                          const SizedBox(width: 10),
+                                          Text(item.$2,
+                                              style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 13)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: _showUnlockPaywall,
+                                      icon: const Icon(LucideIcons.shieldCheck,
+                                          size: 18),
+                                      label: const Text(
+                                        'Unlock Full Access â€” â‚¦5,000',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFF57C00),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Center(
+                                    child: Text(
+                                      '100% refundable if no deal is made',
+                                      style: TextStyle(
+                                          color: Color(0xFF81C784),
+                                          fontSize: 11),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // â”€â”€ TIER 3: UNLOCKED CONTENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    if (_isUnlocked) ...[
+                      // Exact Location + Maps
+                      _buildSectionHeader(LucideIcons.mapPin, 'Location'),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(LucideIcons.mapPin,
+                                    color: Colors.blue, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    p.locationName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                icon:
+                                    const Icon(LucideIcons.map, size: 16),
+                                label: const Text('Open in Google Maps'),
+                                onPressed: () => _openLocationInGoogleMaps(
+                                  p.location.latitude,
+                                  p.location.longitude,
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.blue[700],
+                                  side:
+                                      BorderSide(color: Colors.blue[300]!),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Structure & Vital Signs
+                      _buildSectionHeader(
+                          LucideIcons.activity, 'Structure & Vital Signs'),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: theme.dividerColor
+                                  .withValues(alpha: 0.1)),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildDetailRow(LucideIcons.calendar,
+                                'Year Built', p.yearBuilt?.toString() ?? 'N/A'),
+                            _buildDetailRow(LucideIcons.construction,
+                                'Foundation', p.foundationType ?? 'Standard'),
+                            _buildDetailRow(
+                              LucideIcons.waves,
+                              'Flooding History',
+                              p.floodingHistory
+                                  ? 'History Flagged'
+                                  : 'None Reported',
+                              valueColor: p.floodingHistory
+                                  ? Colors.red
+                                  : Colors.green,
+                            ),
+                            const Divider(height: 24),
+                            _buildDetailRow(LucideIcons.zap, 'Avg. Electricity',
+                                '${p.electricitySupplyHours.toInt()} hrs/day'),
+                            _buildDetailRow(LucideIcons.map, 'Road Distance',
+                                '${p.proximityToRoadMeters} meters'),
+                            _buildDetailRow(LucideIcons.activity,
+                                'Nearest Hospital',
+                                '${p.proximityToHospitalKm.toStringAsFixed(1)} km'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Due Diligence Vault
+                      _buildDueDiligenceVault(p, theme),
+                      const SizedBox(height: 28),
+
+                      // Legal & Authenticity
+                      _buildSectionHeader(
+                          LucideIcons.shieldCheck, 'Legal & Authenticity'),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary
+                              .withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.08)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (p.legalDocuments.isEmpty &&
+                                !p.hasCertificateOfOccupancy &&
+                                !p.hasSurveyPlan)
+                              _buildLegalItem(
+                                LucideIcons.fileQuestion,
+                                'Standard Documentation',
+                                'Being Verified',
+                                Colors.grey,
+                              )
+                            else ...[
+                              if (p.hasCertificateOfOccupancy)
+                                _buildLegalItem(LucideIcons.scrollText,
+                                    'Cert. of Occupancy', 'AVAILABLE',
+                                    Colors.green),
+                              if (p.hasGovernorsConsent)
+                                _buildLegalItem(LucideIcons.fileCheck,
+                                    "Governor's Consent", 'AVAILABLE',
+                                    Colors.green),
+                              if (p.hasSurveyPlan)
+                                _buildLegalItem(LucideIcons.map, 'Survey Plan',
+                                    'AVAILABLE', Colors.green),
+                              if (p.hasBuildingPlanApproval)
+                                _buildLegalItem(LucideIcons.building,
+                                    'Building Approval', 'AVAILABLE',
+                                    Colors.green),
+                              ...p.legalDocuments.map(
+                                (doc) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(top: 8.0),
+                                  child: _buildLegalItem(
+                                    doc.title.contains('Survey')
+                                        ? LucideIcons.map
+                                        : doc.title.contains('Deed')
+                                            ? LucideIcons.fileSignature
+                                            : LucideIcons.scrollText,
+                                    doc.title,
+                                    doc.isVerified ? 'Verified' : 'Pending',
+                                    doc.isVerified
+                                        ? Colors.green
+                                        : Colors.orange,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (p.hasLawyerVerifiedTerms) ...[
+                              const Divider(height: 20),
+                              _buildLegalItem(
+                                  LucideIcons.shieldCheck,
+                                  'Lawyer Verified Terms',
+                                  'AUTHENTIC',
+                                  Colors.teal),
+                            ],
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showTermsModal(context, p),
+                                icon: const Icon(LucideIcons.gavel, size: 15),
+                                label: const Text(
+                                    "Read Lawyer's Terms & Conditions"),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // How to Own (buy listings only)
+                      if (p.priceTerm == 'buy') ...[
+                        HomeOwnershipOptionsWidget(property: p),
+                        const SizedBox(height: 24),
+                      ],
+                    ],
+
+                    const SizedBox(height: 100), // space for bottom bar
                   ],
                 ),
               ),
@@ -1290,186 +1381,195 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         ],
       ),
       bottomSheet: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            // Contact / Message stub button
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.dividerColor.withValues(alpha: 0.2),
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: IconButton(
-                icon: const Icon(LucideIcons.messageSquare),
-                onPressed: () {
-                  if (!_isUnlocked) {
-                    _showUnlockPaywall();
-                    return;
-                  }
-                  final chatProvider = Provider.of<ChatProvider>(
-                    context,
-                    listen: false,
-                  );
-                  chatProvider.createRoom(
-                    widget.property.id,
-                    widget.property.title,
-                    widget.property.imagesGallery.isNotEmpty
-                        ? widget.property.imagesGallery.first
-                        : widget.property.imageUrl,
-                    widget.property.agentName,
-                  );
-                  final room = chatProvider.getRoomByProperty(
-                    widget.property.id,
-                  );
-                  if (room != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatDetailScreen(roomId: room.id),
+        child: SafeArea(
+          top: false,
+          child: _isUnlocked
+              ? Row(
+                  children: [
+                    // Message agent
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color:
+                                theme.dividerColor.withValues(alpha: 0.2)),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  final bookings = Provider.of<BookingProvider>(
-                    context,
-                    listen: false,
-                  ).getBookingsForProperty(widget.property.id);
-                  
-                  if (!_isUnlocked) {
-                    _showUnlockPaywall();
-                    return;
-                  }
-
-                  if (bookings.isNotEmpty) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PropertyManagementScreen(
-                          commitment: UnifiedCommitment.fromBooking(
-                            bookings.first,
-                          ),
-                          isAgent: false,
+                      child: IconButton(
+                        icon: const Icon(LucideIcons.messageSquare),
+                        onPressed: () {
+                          final chatProvider = Provider.of<ChatProvider>(
+                              context,
+                              listen: false);
+                          chatProvider.createRoom(
+                              p.id,
+                              p.title,
+                              p.imagesGallery.isNotEmpty
+                                  ? p.imagesGallery.first
+                                  : p.imageUrl,
+                              p.agentName);
+                          final room =
+                              chatProvider.getRoomByProperty(p.id);
+                          if (room != null) {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ChatDetailScreen(
+                                        roomId: room.id)));
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final bookings =
+                              Provider.of<BookingProvider>(context,
+                                      listen: false)
+                                  .getBookingsForProperty(p.id);
+                          if (bookings.isNotEmpty) {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => PropertyManagementScreen(
+                                        commitment:
+                                            UnifiedCommitment.fromBooking(
+                                                bookings.first),
+                                        isAgent: false)));
+                          } else {
+                            _bookInspection(context);
+                          }
+                        },
+                        icon: const Icon(LucideIcons.calendar, size: 18),
+                        label: const Text('Book Inspection',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
                         ),
                       ),
-                    );
-                  } else {
-                    // Directly open inspection picker now that "Premium Actions" is gone
-                    _bookInspection(context);
-                  }
-                },
-                icon: Icon(
-                  _isUnlocked ? LucideIcons.calendar : LucideIcons.lock, 
-                  size: 18,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isUnlocked ? theme.colorScheme.primary : Colors.amber[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                label: Text(
-                  _isUnlocked ? 'Book Inspection' : 'Unlock Premium Access',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeOutBack,
-        builder: (context, value, child) {
-          return Transform.scale(scale: value, child: child);
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.5),
-                    end: Offset.zero,
-                  ).animate(anim),
-                  child: child,
-                ),
-              ),
-              child: Container(
-                key: ValueKey(_currentTooltipIndex),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _tooltipPhrases[_currentTooltipIndex],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            FloatingActionButton.extended(
-              heroTag: 'view_in_map_${p.id}',
-              onPressed: () {
-                if (!_isUnlocked) {
-                  _showUnlockPaywall();
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MapExploreScreen(initialProperty: p),
                     ),
-                  );
-                }
-              },
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(LucideIcons.map),
-              label: const Text(
-                'View in Map',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
+                  ],
+                )
+              : SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _showUnlockPaywall,
+                    icon: const Icon(LucideIcons.lock, size: 18),
+                    label: const Text(
+                      'Unlock Premium Access â€” â‚¦5,000',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF57C00),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
         ),
       ),
     );
   }
 
+
+
+  // ─── New helper widgets ─────────────────────────────────────────────────
+
+  Widget _buildBadge(String label, Color bg, Color fg,
+      {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: fg),
+            const SizedBox(width: 4),
+          ],
+          Text(label,
+              style: TextStyle(
+                  color: fg, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+      IconData icon, String value, String label, ThemeData theme) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: theme.colorScheme.primary, size: 20),
+        const SizedBox(height: 6),
+        Text(value,
+            style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(label,
+            style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _buildDividerLine() {
+    return Container(width: 1, height: 40, color: Colors.grey.withValues(alpha: 0.2));
+  }
+
+  Widget _buildContactIcon(IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(IconData icon, String title) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: theme.colorScheme.primary),
+        const SizedBox(width: 8),
+        Text(title,
+            style:
+                const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
   Widget _buildDetailRow(IconData icon, String label, String value, {Color? valueColor}) {
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1527,7 +1627,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   ),
                   if (url != null)
                     Text(
-                      _isUnlocked ? 'Tap to view document' : 'Locked • Premium Access Required',
+                      _isUnlocked ? 'Tap to view document' : 'Locked â€¢ Premium Access Required',
                       style: TextStyle(
                         fontSize: 10, 
                         color: _isUnlocked ? theme.colorScheme.primary : Colors.amber[800],
@@ -1948,39 +2048,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildMediaChip(
-    IconData icon,
-    String label,
-    Color color,
-    ThemeData theme, {
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildDesktopLayout(
     BuildContext context,
@@ -2160,7 +2228,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '₦${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+            'â‚¦${p.price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
             style: TextStyle(
               color: theme.colorScheme.primary,
               fontSize: 36,
@@ -2351,9 +2419,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  HOW TO OWN THIS HOME — Nigerian Homeownership Pathways     ║
-// ╚══════════════════════════════════════════════════════════════╝
+// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+// â•‘  HOW TO OWN THIS HOME â€” Nigerian Homeownership Pathways     â•‘
+// â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class HomeOwnershipOptionsWidget extends StatefulWidget {
   final Property property;
   const HomeOwnershipOptionsWidget({super.key, required this.property});
@@ -2381,7 +2449,7 @@ class _HomeOwnershipOptionsWidgetState
         '1. Register with Federal Mortgage Bank of Nigeria (FMBN)',
         '2. Contribute 2.5% of monthly salary through employer',
         '3. Apply after 6 months of contributions',
-        '4. Enjoy up to ₦15M loan at 6% interest for 30 years',
+        '4. Enjoy up to â‚¦15M loan at 6% interest for 30 years',
       ],
       cta: 'Check Eligibility',
       ctaUrl: 'https://fmbn.gov.ng',
@@ -2394,7 +2462,7 @@ class _HomeOwnershipOptionsWidgetState
       badgeColor: Color(0xFF6C63FF),
       headline: 'Rent Today, Own Tomorrow',
       summary:
-          'Pay monthly as if renting. A portion goes toward your equity. Own fully after the agreed term — no huge deposit needed.',
+          'Pay monthly as if renting. A portion goes toward your equity. Own fully after the agreed term â€” no huge deposit needed.',
       steps: [
         '1. Agree rent-to-own price and term with seller/agent',
         '2. Pay monthly installments (includes equity portion)',
@@ -2412,7 +2480,7 @@ class _HomeOwnershipOptionsWidgetState
       badgeColor: Color(0xFFFF7043),
       headline: 'Pay in Tranches',
       summary:
-          'Negotiate a staged payment plan directly with the developer or seller — no bank required. Common for off-plan or estate properties.',
+          'Negotiate a staged payment plan directly with the developer or seller â€” no bank required. Common for off-plan or estate properties.',
       steps: [
         '1. Pay initial deposit (typically 30%)',
         '2. Balance spread over 6, 12, 24 or 36 months',
@@ -2450,10 +2518,10 @@ class _HomeOwnershipOptionsWidgetState
       summary:
           'Platforms like LagosHoms, Bricks Capital, and Coreum offer fast digital mortgage applications processed in days, not months.',
       steps: [
-        '1. Apply on app — no physical visit needed',
+        '1. Apply on app â€” no physical visit needed',
         '2. Upload ID, payslips, and bank statements',
         '3. AI-powered credit scoring for faster decision',
-        '4. Disbursement directly to seller within 7–14 days',
+        '4. Disbursement directly to seller within 7â€“14 days',
       ],
       cta: 'Apply Digitally',
       ctaUrl: 'https://brickscapital.ng',
@@ -2466,7 +2534,7 @@ class _HomeOwnershipOptionsWidgetState
       badgeColor: Color(0xFFEC407A),
       headline: 'Own From Anywhere',
       summary:
-          'Living abroad? FMBN and several banks offer diaspora mortgage products — apply in foreign currency and repay from overseas accounts.',
+          'Living abroad? FMBN and several banks offer diaspora mortgage products â€” apply in foreign currency and repay from overseas accounts.',
       steps: [
         '1. Open a non-resident NHF/diaspora account',
         '2. Fund account in USD, GBP, or EUR',
@@ -2838,9 +2906,9 @@ class _HomeOwnershipOptionsWidgetState
     final int n = 25 * 12;
     final emi = price * rMonthly * (1 + rMonthly * n) / (rMonthly * n);
     if (emi >= 1000000) {
-      return '₦${(emi / 1000000).toStringAsFixed(1)}M';
+      return 'â‚¦${(emi / 1000000).toStringAsFixed(1)}M';
     }
-    return '₦${(emi / 1000).toStringAsFixed(0)}k';
+    return 'â‚¦${(emi / 1000).toStringAsFixed(0)}k';
   }
 }
 

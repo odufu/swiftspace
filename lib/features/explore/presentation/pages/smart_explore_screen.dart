@@ -18,6 +18,88 @@ class SmartExploreScreen extends StatefulWidget {
 
 class _SmartExploreScreenState extends State<SmartExploreScreen> {
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  PropertyType? _selectedFilterType;
+
+  void _showFilterSheet() {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            const Text('Property Type', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: PropertyType.values.map((type) {
+                  final isSelected = _selectedFilterType == type;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(type.name.toUpperCase()),
+                      selected: isSelected,
+                      onSelected: (val) {
+                        setState(() => _selectedFilterType = val ? type : null);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedFilterType = null;
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Reset All'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAllProperties(List<Property> properties, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: MasonryGridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              itemCount: properties.length,
+              itemBuilder: (context, index) => _buildGridCard(properties[index]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,18 +108,28 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
     final properties = propertyProvider.liveProperties;
 
     // AI Recommendation Logic
-    final recommendations = _getAIRecommendations(properties, prefs);
-    final regularList = properties.where((p) => !recommendations.contains(p)).toList();
+    final filteredProperties = properties.where((p) {
+      final matchesSearch = p.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                          p.locationName.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesType = _selectedFilterType == null || p.type == _selectedFilterType;
+      return matchesSearch && matchesType;
+    }).toList();
+
+    final recommendations = _getAIRecommendations(filteredProperties, prefs);
+    final regularList = filteredProperties.where((p) => !recommendations.contains(p)).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             _buildSmartHeader(prefs),
             _buildSearchBar(),
-            _buildHorizontalSuggestions(recommendations),
-            _buildSectionHeader('Top Picks for You'),
+            if (recommendations.isNotEmpty) _buildHorizontalSuggestions(recommendations),
+            _buildSectionHeader(
+              _searchQuery.isEmpty && _selectedFilterType == null ? 'Top Picks for You' : 'Search Results',
+              regularList,
+            ),
             _buildSmartGrid(regularList),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
@@ -62,15 +154,16 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Good Morning!',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        _getGreeting(),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 14),
                       ),
-                      const Text(
+                      Text(
                         'Find your perfect spot',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.5,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -92,6 +185,13 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
     );
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning!';
+    if (hour < 17) return 'Good Afternoon!';
+    return 'Good Evening!';
+  }
+
   Widget _buildSearchBar() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -101,26 +201,30 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey[200]!),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.search, color: Colors.grey, size: 20),
+                Icon(LucideIcons.search, color: Theme.of(context).hintColor, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    decoration: InputDecoration(
                       hintText: 'Try "3 bed in Maitama under 50M"',
-                      hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+                      hintStyle: TextStyle(fontSize: 14, color: Theme.of(context).hintColor),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 16),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
-                const Icon(LucideIcons.slidersHorizontal, color: AppColors.primaryLight, size: 20),
+                IconButton(
+                  icon: const Icon(LucideIcons.slidersHorizontal, color: AppColors.primaryLight, size: 20),
+                  onPressed: _showFilterSheet,
+                ),
               ],
             ),
           ),
@@ -181,9 +285,9 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -272,7 +376,7 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, List<Property> properties) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 40, 24, 16),
@@ -283,14 +387,18 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
               title,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            Text(
-              'See All',
-              style: TextStyle(
-                color: AppColors.primaryLight,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+            if (properties.length > 4)
+              TextButton(
+                onPressed: () => _showAllProperties(properties, title),
+                child: const Text(
+                  'See All',
+                  style: TextStyle(
+                    color: AppColors.primaryLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -313,6 +421,7 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
   }
 
   Widget _buildGridCard(Property property) {
+    final isPremium = property.isPremium;
     return FadeInUp(
       child: GestureDetector(
         onTap: () => Navigator.push(
@@ -321,19 +430,90 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.grey[200]!),
+            border: isPremium
+                ? Border.all(color: const Color(0xFFF57C00).withValues(alpha: 0.6), width: 1.5)
+                : Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: isPremium
+                    ? const Color(0xFFF57C00).withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: isPremium ? 16 : 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: Image.network(
-                  property.imageUrl,
-                  fit: BoxFit.cover,
-                ),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: Image.network(
+                      property.imageUrl,
+                      fit: BoxFit.cover,
+                      height: isPremium ? 160 : 130,
+                      width: double.infinity,
+                    ),
+                  ),
+                  // Premium badge overlay
+                  if (isPremium)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB300), Color(0xFFF57C00)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF57C00).withValues(alpha: 0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(LucideIcons.star, color: Colors.white, size: 10),
+                            SizedBox(width: 4),
+                            Text(
+                              'PREMIUM',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Lock icon for non-unlocked premium
+                  if (isPremium)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(LucideIcons.lock, color: Colors.white, size: 10),
+                      ),
+                    ),
+                ],
               ),
               Padding(
                 padding: const EdgeInsets.all(12),
@@ -350,7 +530,7 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
                     Text(
                       '₦${_formatPrice(property.price)}',
                       style: TextStyle(
-                        color: AppColors.primaryLight,
+                        color: isPremium ? const Color(0xFFF57C00) : AppColors.primaryLight,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -379,6 +559,7 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
       ),
     );
   }
+
 
   String _formatPrice(double price) {
     if (price >= 1000000) {
