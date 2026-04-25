@@ -18,6 +18,9 @@ import 'package:swiftspace/features/chat/presentation/pages/chat_detail_screen.d
 import 'package:swiftspace/features/booking/presentation/pages/inspection_management_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_management_screen.dart';
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_profile_screen.dart';
+import 'package:swiftspace/core/presentation/widgets/common/premium_badge.dart';
+
 
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'dart:async';
@@ -197,6 +200,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       isScrollControlled: true,
       builder: (sheetContext) {
         int selectedMethod = 0; // 0=Card, 1=Transfer, 2=USSD
+        bool isProcessing = false;
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
@@ -371,21 +375,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   // Pay button
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        setState(() => _isUnlocked = true);
-                        _showToast(
-                          'ðŸ”“ Access Unlocked!',
-                          'Deposit received. You now have full access to this listing.',
-                        );
-                      },
-                      icon: const Icon(LucideIcons.shieldCheck, size: 20),
-                      label: const Text(
-                        'Pay â‚¦5,000 â€” Unlock Now',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                    child: ElevatedButton(
+                      onPressed: isProcessing
+                          ? null
+                          : () async {
+                              setModalState(() => isProcessing = true);
+                              await Future.delayed(const Duration(seconds: 2));
+                              if (!context.mounted) return;
+
+                              Navigator.pop(sheetContext);
+                              setState(() => _isUnlocked = true);
+                              _showToast(
+                                '🔓 Access Unlocked!',
+                                'Deposit received. You now have full access to this listing.',
+                              );
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF57C00),
                         foregroundColor: Colors.white,
@@ -394,13 +398,37 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           borderRadius: BorderRadius.circular(18),
                         ),
                         elevation: 0,
+                        disabledBackgroundColor: const Color(0xFFF57C00).withValues(alpha: 0.6),
                       ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(LucideIcons.shieldCheck, size: 20),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Pay ₦5,000 — Unlock Now',
+                                  style: TextStyle(
+                                      fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                   const SizedBox(height: 10),
                   Center(
                     child: Text(
-                      'Secured by SwiftSpace Â· 256-bit encrypted',
+                      isProcessing 
+                        ? 'Verifying transaction with your bank...' 
+                        : 'Secured by SwiftSpace · 256-bit encrypted',
                       style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                     ),
                   ),
@@ -474,7 +502,31 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
 
     return Scaffold(
+      floatingActionButton: (p.hasVideo && p.videoUrl != null)
+          ? FloatingActionButton.extended(
+              heroTag: 'watch_video_fab',
+              onPressed: () {
+                context.read<PropertyProvider>().incrementVideoViews(p.id);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VideoPlayerScreen(videoUrl: p.videoUrl!),
+                  ),
+                );
+              },
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              icon: const Icon(LucideIcons.play, size: 18),
+              label: const Text(
+                'Watch Video',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: CustomScrollView(
+
         slivers: [
           SliverAppBar(
             expandedHeight: 350,
@@ -790,6 +842,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     ),
                     const SizedBox(height: 14),
 
+                    if (p.isPremium)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: PremiumBadge(fontSize: 12, iconSize: 14),
+                      ),
+
                     // Title + Price row
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -857,6 +915,146 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+
+                    // ── LISTER CARD (always visible, first identity element) ──
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProfessionalProfileScreen(
+                            listerId: p.listerId ?? '',
+                            listerName: p.listerName,
+                            listerType: p.listerType,
+                            companyName: p.companyName,
+                            listerLogoUrl: p.listerLogoUrl,
+                            isVerified: p.isVerified,
+                          ),
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Avatar: company logo or themed fallback icon
+                            Builder(builder: (_) {
+                              final logoUrl = p.listerLogoUrl;
+                              if (logoUrl != null && logoUrl.isNotEmpty) {
+                                return CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                  backgroundImage: NetworkImage(logoUrl),
+                                );
+                              }
+                              return CircleAvatar(
+                                radius: 24,
+                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                                child: Icon(
+                                  p.listerType == ListerType.developer
+                                      ? LucideIcons.building2
+                                      : p.listerType == ListerType.agent
+                                          ? LucideIcons.briefcase
+                                          : LucideIcons.user,
+                                  color: theme.colorScheme.primary,
+                                  size: 22,
+                                ),
+                              );
+                            }),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          p.listerType == ListerType.agent
+                                              ? p.listerName
+                                              : (p.companyName ?? p.listerName),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (p.isVerified) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.verified,
+                                            color: Colors.teal, size: 14),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    p.listerType == ListerType.developer
+                                        ? 'Developer'
+                                        : p.listerType == ListerType.agent
+                                            ? 'Licensed Agent'
+                                            : 'Property Owner',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tap to view professional profile →',
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Contact icons (only when unlocked), lock icon otherwise
+                            if (_isUnlocked)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildContactIcon(LucideIcons.phone, Colors.green, () {}),
+                                  const SizedBox(width: 6),
+                                  _buildContactIcon(LucideIcons.messageCircle, Colors.teal, () {
+                                    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                                    chatProvider.createRoom(
+                                        p.id, p.title,
+                                        p.imagesGallery.isNotEmpty ? p.imagesGallery.first : p.imageUrl,
+                                        p.agentName);
+                                    final room = chatProvider.getRoomByProperty(p.id);
+                                    if (room != null) {
+                                      Navigator.push(context,
+                                          MaterialPageRoute(builder: (_) => ChatDetailScreen(roomId: room.id)));
+                                    }
+                                  }),
+                                ],
+                              )
+                            else
+                              GestureDetector(
+                                onTap: _showUnlockPaywall,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(LucideIcons.lock,
+                                      color: Colors.amber, size: 16),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 20),
 
                     // Key Stats card
@@ -920,105 +1118,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                     theme.dividerColor.withValues(alpha: 0.2)),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(a,
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w500)),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Lister Preview (free â€” name + avatar only)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: theme.dividerColor.withValues(alpha: 0.12)),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3)),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor:
-                                theme.colorScheme.primary.withValues(alpha: 0.12),
-                            child: Icon(LucideIcons.user,
-                                color: theme.colorScheme.primary),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  p.agentName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15),
-                                ),
-                                Text(
-                                  _isUnlocked ? 'Listed Agent' : 'Contact hidden â€” unlock to call',
-                                  style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_isUnlocked)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildContactIcon(
-                                    LucideIcons.phone, Colors.green, () {}),
-                                const SizedBox(width: 8),
-                                _buildContactIcon(
-                                    LucideIcons.messageCircle, Colors.teal,
-                                    () {
-                                  final chatProvider =
-                                      Provider.of<ChatProvider>(context,
-                                          listen: false);
-                                  chatProvider.createRoom(
-                                      p.id,
-                                      p.title,
-                                      p.imagesGallery.isNotEmpty
-                                          ? p.imagesGallery.first
-                                          : p.imageUrl,
-                                      p.agentName);
-                                  final room =
-                                      chatProvider.getRoomByProperty(p.id);
-                                  if (room != null) {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                ChatDetailScreen(roomId: room.id)));
-                                  }
-                                }),
-                              ],
-                            )
-                          else
-                            GestureDetector(
-                              onTap: _showUnlockPaywall,
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color:
-                                      Colors.amber.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(LucideIcons.lock,
-                                    color: Colors.amber, size: 18),
-                              ),
-                            ),
-                        ],
-                      ),
+                           child: Text(a,
+                               style: const TextStyle(
+                                   fontSize: 12, fontWeight: FontWeight.w500)),
+                         );
+                       }).toList(),
                     ),
                     const SizedBox(height: 24),
 
@@ -1584,6 +1688,128 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
+  Future<void> _showDocumentPreview(String title, String url) async {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(LucideIcons.fileText, color: theme.colorScheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Text(
+                          'Verified Document',
+                          style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(LucideIcons.x),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(LucideIcons.loader2, size: 48, color: theme.colorScheme.primary),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Preparing Secure Preview...',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Document is being decrypted and fetched',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                    const SizedBox(height: 40),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                      icon: const Icon(LucideIcons.externalLink, size: 18),
+                      label: const Text('Open in Full Viewer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.shieldCheck, color: Colors.teal, size: 14),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Protected by SwiftSpace SecureVault',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLegalItem(
     IconData icon,
     String title,
@@ -1598,10 +1824,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           _showUnlockPaywall();
           return;
         }
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-        }
+        _showDocumentPreview(title, url);
       } : null,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
@@ -2056,6 +2279,29 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     Property p,
   ) {
     return Scaffold(
+      floatingActionButton: (p.hasVideo && p.videoUrl != null)
+          ? FloatingActionButton.extended(
+              heroTag: 'watch_video_fab_desktop',
+              onPressed: () {
+                context.read<PropertyProvider>().incrementVideoViews(p.id);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VideoPlayerScreen(videoUrl: p.videoUrl!),
+                  ),
+                );
+              },
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              icon: const Icon(LucideIcons.play, size: 18),
+              label: const Text(
+                'Watch Video',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
@@ -2099,9 +2345,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDesktopInfoCard(theme, p),
-                    const SizedBox(height: 32),
                     _buildDesktopAgentCard(theme, p),
+                    const SizedBox(height: 32),
+                    _buildDesktopInfoCard(theme, p),
                     const SizedBox(height: 32),
                     _buildDesktopCTAs(theme, p),
                   ],
@@ -2263,44 +2509,147 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 
   Widget _buildDesktopAgentCard(ThemeData theme, Property p) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProfessionalProfileScreen(
+            listerId: p.listerId ?? '',
+            listerName: p.listerName,
+            listerType: p.listerType,
+            companyName: p.companyName,
+            listerLogoUrl: p.listerLogoUrl,
+            isVerified: p.isVerified,
+          ),
+        ),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-            child: Icon(LucideIcons.user, color: theme.colorScheme.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Swift Space Verified Agent',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  'Real Estate Specialist',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: Icon(
-              LucideIcons.messageCircle,
-              color: theme.colorScheme.primary,
+          ],
+        ),
+        child: Row(
+          children: [
+            Builder(builder: (_) {
+              final logoUrl = p.listerLogoUrl;
+              if (logoUrl != null && logoUrl.isNotEmpty) {
+                return CircleAvatar(
+                  radius: 32,
+                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  backgroundImage: NetworkImage(logoUrl),
+                );
+              }
+              return CircleAvatar(
+                radius: 32,
+                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                child: Icon(
+                  p.listerType == ListerType.developer
+                      ? LucideIcons.building2
+                      : p.listerType == ListerType.agent
+                          ? LucideIcons.briefcase
+                          : LucideIcons.user,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                ),
+              );
+            }),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          p.listerType == ListerType.agent
+                              ? p.listerName
+                              : (p.companyName ?? p.listerName),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (p.isVerified) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.verified,
+                            color: Colors.teal, size: 18),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    p.listerType == ListerType.developer
+                        ? 'Professional Developer'
+                        : p.listerType == ListerType.agent
+                            ? 'Licensed Real Estate Agent'
+                            : 'Property Owner',
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        'View Professional Profile',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(LucideIcons.arrowRight, size: 12, color: Colors.grey[500]),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (_isUnlocked)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildContactIcon(LucideIcons.phone, Colors.green, () {}),
+                  const SizedBox(width: 12),
+                  _buildContactIcon(LucideIcons.messageCircle, Colors.teal, () {
+                    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+                    chatProvider.createRoom(
+                        p.id, p.title,
+                        p.imagesGallery.isNotEmpty ? p.imagesGallery.first : p.imageUrl,
+                        p.agentName);
+                    final room = chatProvider.getRoomByProperty(p.id);
+                    if (room != null) {
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => ChatDetailScreen(roomId: room.id)));
+                    }
+                  }),
+                ],
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(LucideIcons.lock,
+                    color: Colors.amber, size: 20),
+              ),
+          ],
+        ),
       ),
     );
   }

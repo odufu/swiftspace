@@ -72,7 +72,12 @@ class _LocationPickerComponentState extends State<LocationPickerComponent> {
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
       final newLoc = LatLng(position.latitude, position.longitude);
       
       _updateLocation(newLoc);

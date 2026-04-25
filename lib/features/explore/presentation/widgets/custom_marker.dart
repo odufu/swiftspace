@@ -190,6 +190,15 @@ class _CustomMarkerWidgetState extends State<CustomMarkerWidget>
                     fontSize: 10,
                   ),
                 ),
+              if (widget.property.isPremium)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4.0),
+                  child: Icon(
+                    LucideIcons.crown,
+                    color: isDarkBackground ? Colors.amberAccent : Colors.orange,
+                    size: 13,
+                  ),
+                ),
               if (widget.property.hasLawyerVerifiedTerms)
                 Padding(
                   padding: const EdgeInsets.only(left: 4.0),
@@ -222,13 +231,14 @@ class _CustomMarkerWidgetState extends State<CustomMarkerWidget>
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
+        // SONAR WAVE 1
         Positioned(
           bottom: -15,
           child: AnimatedBuilder(
             animation: _pulseController,
             builder: (context, child) {
               return Transform.scale(
-                scale: _pulseAnimationScale.value,
+                scale: widget.isBestOffer ? _pulseAnimationScale.value * 1.5 : _pulseAnimationScale.value,
                 child: Opacity(
                   opacity: _pulseAnimationOpacity.value,
                   child: Container(
@@ -236,9 +246,18 @@ class _CustomMarkerWidgetState extends State<CustomMarkerWidget>
                     height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: widget.isSelected
-                          ? Colors.blueAccent.withValues(alpha: 0.5)
-                          : baseColor.withValues(alpha: 0.5),
+                      color: widget.isBestOffer 
+                          ? Colors.amber.withValues(alpha: 0.6)
+                          : widget.isSelected
+                            ? Colors.blueAccent.withValues(alpha: 0.5)
+                            : baseColor.withValues(alpha: 0.5),
+                      boxShadow: widget.isBestOffer ? [
+                        BoxShadow(
+                          color: Colors.amber.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          spreadRadius: 10,
+                        )
+                      ] : null,
                     ),
                   ),
                 ),
@@ -246,34 +265,37 @@ class _CustomMarkerWidgetState extends State<CustomMarkerWidget>
             },
           ),
         ),
-        Positioned(
-          bottom: -15,
-          child: AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              double delayedScale = _pulseAnimationScale.value - 0.8;
-              if (delayedScale < 0.8) delayedScale = 0.8;
-              return Transform.scale(
-                scale: delayedScale,
-                child: Opacity(
-                  opacity: _pulseAnimationOpacity.value * 0.8,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: widget.isSelected
-                              ? Colors.white
-                              : Colors.amberAccent,
-                          width: 2),
+        // SONAR WAVE 2 (Secondary ring)
+        if (widget.isBestOffer)
+          Positioned(
+            bottom: -15,
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                double delayedValue = (_pulseController.value + 0.5) % 1.0;
+                double delayedScale = 0.8 + (delayedValue * 4.0);
+                double delayedOpacity = 1.0 - delayedValue;
+                
+                return Transform.scale(
+                  scale: delayedScale,
+                  child: Opacity(
+                    opacity: delayedOpacity * 0.5,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.amberAccent,
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
         markerContent,
       ],
     );

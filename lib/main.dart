@@ -12,6 +12,7 @@ import 'package:swiftspace/features/auth/presentation/pages/user_profile_screen.
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/features/booking/presentation/state/booking_provider.dart';
 import 'package:swiftspace/features/chat/presentation/state/chat_provider.dart';
+import 'package:swiftspace/shared/widgets/notification_sheet.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/features/auth/presentation/pages/splash_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/property_hub_screen.dart';
@@ -24,7 +25,6 @@ import 'package:swiftspace/features/savings/presentation/state/savings_provider.
 import 'package:swiftspace/features/savings/presentation/pages/savings_screen.dart';
 import 'package:swiftspace/core/utils/responsive.dart';
 import 'package:swiftspace/features/chat/presentation/state/notification_provider.dart';
-import 'package:swiftspace/features/chat/domain/entities/notification.dart';
 import 'package:swiftspace/core/presentation/widgets/common/badge_icon.dart';
 
 import 'package:swiftspace/core/services/supabase_service.dart';
@@ -51,9 +51,9 @@ void main() async {
   // Initialize Dependency Injection
   await initGlobalDI();
 
-  // Configure GoogleFonts to allow runtime fetching
-  // This prevents the IDE debugger from constantly halting on font-missing Exceptions
-  GoogleFonts.config.allowRuntimeFetching = true;
+  // Configure GoogleFonts to use local assets and not fetch from the internet.
+  // This avoids CORS and connectivity issues on Flutter Web and ensures visual consistency.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Global error handler for Flutter frame-work errors
   FlutterError.onError = (details) {
@@ -187,8 +187,10 @@ class _MainLayoutState extends State<MainLayout> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(
+        appBar: prefs.currentTabIndex == 0 
+          ? null 
+          : AppBar(
+              title: Text(
             AppConstants.appName,
             style: GoogleFonts.outfit(
               fontWeight: FontWeight.w900,
@@ -216,8 +218,8 @@ class _MainLayoutState extends State<MainLayout> {
                       icon: LucideIcons.bell,
                       count: note.unreadCount,
                       onPressed: () {
-                        // Show notification sheet or navigate
-                        _showNotificationSheet(context);
+                        // Show notification sheet
+                        NotificationSheet.show(context);
                       },
                     ),
                     const SizedBox(width: 8),
@@ -323,139 +325,5 @@ class _MainLayoutState extends State<MainLayout> {
             : null,
       ),
     );
-  }
-
-  void _showNotificationSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Consumer<NotificationProvider>(
-          builder: (context, provider, child) {
-            final notes = provider.notifications;
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Notifications',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: provider.markAllAsRead,
-                          child: const Text('Mark all as read'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(),
-                  if (notes.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text('No new notifications'),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: notes.length,
-                        itemBuilder: (context, index) {
-                          final n = notes[index];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _getNoteColor(
-                                n.type,
-                              ).withValues(alpha: 0.1),
-                              child: Icon(
-                                _getNoteIcon(n.type),
-                                color: _getNoteColor(n.type),
-                                size: 20,
-                              ),
-                            ),
-                            title: Text(
-                              n.title,
-                              style: TextStyle(
-                                fontWeight: n.isRead
-                                    ? FontWeight.normal
-                                    : FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              n.message,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Text(
-                              _formatTime(n.timestamp),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            onTap: () => provider.markAsRead(n.id),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  IconData _getNoteIcon(NotificationType type) {
-    switch (type) {
-      case NotificationType.inspection:
-        return LucideIcons.calendar;
-      case NotificationType.offer:
-        return LucideIcons.landmark;
-      case NotificationType.chat:
-        return LucideIcons.messageSquare;
-      case NotificationType.match:
-        return LucideIcons.home;
-      case NotificationType.system:
-        return LucideIcons.info;
-      default:
-        return LucideIcons.bell;
-    }
-  }
-
-  Color _getNoteColor(NotificationType type) {
-    switch (type) {
-      case NotificationType.inspection:
-        return Colors.blue;
-      case NotificationType.offer:
-        return Colors.green;
-      case NotificationType.chat:
-        return Colors.orange;
-      case NotificationType.match:
-        return Colors.purple;
-      case NotificationType.system:
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _formatTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
   }
 }

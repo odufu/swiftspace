@@ -10,11 +10,12 @@ class PropertyRepository {
 
   Future<List<Property>> getProperties({bool includeTest = true}) async {
     try {
-      // 1. Fetch live properties from Supabase
+      // 1. Fetch live properties from Supabase with a timeout
       final List<dynamic> response = await _client
           .from('properties')
           .select()
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .timeout(const Duration(seconds: 10));
 
       final liveProperties = response.map((json) => Property.fromMap(json)).toList();
 

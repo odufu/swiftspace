@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AudioManager {
   // Singleton pattern
@@ -31,7 +33,10 @@ class AudioManager {
       // Removed AudioContextConfig as it's causing compilation errors.
 
       // Pre-load the boot sound into the player to warm up the decoder
-      _player.setSource(_sources['boot.mp3']!);
+      // Skipping on Windows for now due to reported stability issues with audioplayers assets
+      if (!kIsWeb && !Platform.isWindows) {
+        _player.setSource(_sources['boot.mp3']!);
+      }
       
     } catch (e) {
       debugPrint('Warning: AudioManager initialization issue: $e');
@@ -106,7 +111,8 @@ class AudioManager {
       
       await _player.play(source);
     } catch (e) {
-       debugPrint('Audio execution error: $e');
+       // Silently fail to avoid UI freezes or blocking on platforms with restricted audio namespaces
+       debugPrint('Audio playback suppressed: $e');
     }
   }
 

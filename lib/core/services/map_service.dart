@@ -11,9 +11,9 @@ abstract class IMapService {
 /// Implementation of IMapService using FlutterMap and CachedNetworkImage.
 class FlutterMapService implements IMapService {
   static const String darkUrl =
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
   static const String lightUrl =
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
   @override
   TileLayer getTileLayer({required bool isDark, required bool isSatellite}) {
@@ -24,7 +24,7 @@ class FlutterMapService implements IMapService {
     return TileLayer(
       urlTemplate: urlTemplate,
       tileProvider: CachedTileProvider(),
-      userAgentPackageName: 'com.odufu.swiftspace',
+      userAgentPackageName: 'com.swiftspace.app',
       maxZoom: 19,
     );
   }

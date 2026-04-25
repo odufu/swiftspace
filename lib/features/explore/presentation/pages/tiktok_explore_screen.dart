@@ -8,11 +8,14 @@ import 'package:swiftspace/features/property/presentation/state/property_provide
 import 'package:swiftspace/features/explore/presentation/state/favorites_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_profile_screen.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/core/presentation/widgets/common/premium_badge.dart';
 
 class TikTokExploreScreen extends StatefulWidget {
-  const TikTokExploreScreen({super.key});
+  final List<Property>? curatedProperties;
+  const TikTokExploreScreen({super.key, this.curatedProperties});
 
   @override
   State<TikTokExploreScreen> createState() => _TikTokExploreScreenState();
@@ -29,8 +32,8 @@ class _TikTokExploreScreenState extends State<TikTokExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Only show live properties representing feed
-    final properties = Provider.of<PropertyProvider>(context).liveProperties;
+    // Only show live properties representing feed or curated list
+    final properties = widget.curatedProperties ?? Provider.of<PropertyProvider>(context).liveProperties;
 
     // Filter to only active and feed-ready properties (optional extra filtering here)
     if (properties.isEmpty) {
@@ -177,16 +180,9 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                    ),
                    const SizedBox(width: 8),
                    if (widget.property.isPremium)
-                     Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
-                        child: const Row(
-                          children: [
-                            Icon(LucideIcons.star, color: Colors.white, size: 10),
-                            SizedBox(width: 4),
-                            Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ]
-                        ),
+                     const Padding(
+                       padding: EdgeInsets.only(bottom: 4),
+                       child: PremiumBadge(),
                      )
                    else if (widget.property.isVerified)
                      Container(
@@ -241,17 +237,34 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Avatar
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  image: widget.property.listerLogoUrl != null
-                      ? DecorationImage(image: CachedNetworkImageProvider(widget.property.listerLogoUrl!), fit: BoxFit.cover)
-                      : null,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfessionalProfileScreen(
+                        listerId: widget.property.listerId ?? '',
+                        listerName: widget.property.listerName,
+                        listerType: widget.property.listerType,
+                        companyName: widget.property.companyName,
+                        listerLogoUrl: widget.property.listerLogoUrl,
+                        isVerified: widget.property.isVerified,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    image: widget.property.listerLogoUrl != null
+                        ? DecorationImage(image: CachedNetworkImageProvider(widget.property.listerLogoUrl!), fit: BoxFit.cover)
+                        : null,
+                  ),
+                  child: widget.property.listerLogoUrl == null ? const Icon(LucideIcons.user, color: Colors.white) : null,
                 ),
-                child: widget.property.listerLogoUrl == null ? const Icon(LucideIcons.user, color: Colors.white) : null,
               ),
               const SizedBox(height: 24),
               

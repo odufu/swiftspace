@@ -7,7 +7,7 @@ class AppConstants {
 
   // Map URLs
   static const String mapUrlSatellite = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-  static const String mapUrlStandard = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const String mapUrlStandard = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 }
 
 class AppAssets {

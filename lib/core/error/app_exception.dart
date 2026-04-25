@@ -26,6 +26,7 @@ class AppException implements Exception {
         errorStr.contains('failed host lookup') ||
         errorStr.contains('network is unreachable') ||
         errorStr.contains('connection refused') ||
+        errorStr.contains('handshake') ||
         errorStr.contains('connection timed out')) {
       return AppException(
         'No internet connection. Please check your network and try again.',

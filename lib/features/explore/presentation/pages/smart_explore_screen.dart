@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
-import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
-import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
+import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/features/explore/domain/services/ai_recommendation_service.dart';
+import 'package:swiftspace/features/explore/presentation/pages/grid_explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/map_explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/tiktok_explore_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final List<Property>? properties;
+
+  ChatMessage({required this.text, required this.isUser, this.properties});
+}
+
+enum _CuratedViewMode { grid, map, swipe }
 
 class SmartExploreScreen extends StatefulWidget {
   const SmartExploreScreen({super.key});
@@ -16,359 +28,228 @@ class SmartExploreScreen extends StatefulWidget {
   State<SmartExploreScreen> createState() => _SmartExploreScreenState();
 }
 
-class _SmartExploreScreenState extends State<SmartExploreScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  PropertyType? _selectedFilterType;
+class _SmartExploreScreenState extends State<SmartExploreScreen>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _chatController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final IAiRecommendationService _aiService = sl<IAiRecommendationService>();
 
-  void _showFilterSheet() {
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            const Text('Property Type', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: PropertyType.values.map((type) {
-                  final isSelected = _selectedFilterType == type;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(type.name.toUpperCase()),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        setState(() => _selectedFilterType = val ? type : null);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedFilterType = null;
-                    _searchQuery = '';
-                    _searchController.clear();
-                  });
-                  Navigator.pop(context);
-                },
-                child: const Text('Reset All'),
-              ),
-            ),
-          ],
-        ),
-      ),
+  final List<ChatMessage> _messages = [
+    ChatMessage(
+      text:
+          'Hi there! 👋 I\'m your SwiftSpace AI. Describe your ideal property — budget, location, type — and I\'ll find the best matches for you.',
+      isUser: false,
+    ),
+  ];
+
+  bool _isLoading = false;
+
+  // Curated panel state
+  List<Property>? _curatedProperties;
+  bool _showCuratedPanel = false;
+  _CuratedViewMode _curatedViewMode = _CuratedViewMode.grid;
+  late AnimationController _panelController;
+  late Animation<Offset> _panelSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _panelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
+    _panelSlide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _panelController, curve: Curves.easeOutCubic));
   }
 
-  void _showAllProperties(List<Property> properties, String title) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(title)),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: MasonryGridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              itemCount: properties.length,
-              itemBuilder: (context, index) => _buildGridCard(properties[index]),
-            ),
-          ),
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    _chatController.dispose();
+    _scrollController.dispose();
+    _panelController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent + 300,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final query = _chatController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _messages.add(ChatMessage(text: query, isUser: true));
+      _isLoading = true;
+    });
+    _chatController.clear();
+    _scrollToBottom();
+
+    try {
+      final results = await _aiService.getRecommendations(query);
+
+      setState(() {
+        _isLoading = false;
+        if (results.isEmpty) {
+          _messages.add(ChatMessage(
+            text:
+                "I couldn't find any exact matches for that. Try broadening your search or adjusting your budget.",
+            isUser: false,
+          ));
+        } else {
+          _messages.add(ChatMessage(
+            text:
+                "Found ${results.length} properties that match your criteria. Here are your top picks:",
+            isUser: false,
+            properties: results,
+          ));
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _messages.add(ChatMessage(
+          text: "Sorry, I ran into an error. Please try again.",
+          isUser: false,
+        ));
+      });
+    }
+    _scrollToBottom();
+  }
+
+  void _openCuratedPanel(List<Property> properties) {
+    setState(() {
+      _curatedProperties = properties;
+      _showCuratedPanel = true;
+    });
+    _panelController.forward();
+  }
+
+  void _closeCuratedPanel() {
+    _panelController.reverse().then((_) {
+      setState(() {
+        _showCuratedPanel = false;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final propertyProvider = Provider.of<PropertyProvider>(context);
-    final prefs = Provider.of<UserPreferencesProvider>(context);
-    final properties = propertyProvider.liveProperties;
-
-    // AI Recommendation Logic
-    final filteredProperties = properties.where((p) {
-      final matchesSearch = p.title.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                          p.locationName.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesType = _selectedFilterType == null || p.type == _selectedFilterType;
-      return matchesSearch && matchesType;
-    }).toList();
-
-    final recommendations = _getAIRecommendations(filteredProperties, prefs);
-    final regularList = filteredProperties.where((p) => !recommendations.contains(p)).toList();
-
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            _buildSmartHeader(prefs),
-            _buildSearchBar(),
-            if (recommendations.isNotEmpty) _buildHorizontalSuggestions(recommendations),
-            _buildSectionHeader(
-              _searchQuery.isEmpty && _selectedFilterType == null ? 'Top Picks for You' : 'Search Results',
-              regularList,
-            ),
-            _buildSmartGrid(regularList),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmartHeader(UserPreferencesProvider prefs) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FadeInDown(
-              duration: const Duration(milliseconds: 500),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getGreeting(),
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 14),
-                      ),
-                      Text(
-                        'Find your perfect spot',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(LucideIcons.sparkles, color: AppColors.primaryLight, size: 20),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning!';
-    if (hour < 17) return 'Good Afternoon!';
-    return 'Good Evening!';
-  }
-
-  Widget _buildSearchBar() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: FadeInUp(
-          duration: const Duration(milliseconds: 600),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: [
-                Icon(LucideIcons.search, color: Theme.of(context).hintColor, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) => setState(() => _searchQuery = val),
-                    decoration: InputDecoration(
-                      hintText: 'Try "3 bed in Maitama under 50M"',
-                      hintStyle: TextStyle(fontSize: 14, color: Theme.of(context).hintColor),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(LucideIcons.slidersHorizontal, color: AppColors.primaryLight, size: 20),
-                  onPressed: _showFilterSheet,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHorizontalSuggestions(List<Property> recommendations) {
-    if (recommendations.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
-
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(24, 32, 24, 16),
-            child: Row(
-              children: [
-                Icon(LucideIcons.zap, color: Colors.amber, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'AI Recommendations',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          // ── Main Chat ──────────────────────────────────────────────────
+          Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: _messages.length + (_isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length && _isLoading) {
+                      return _buildLoadingBubble();
+                    }
+                    return _buildChatBubble(_messages[index]);
+                  },
                 ),
-              ],
-            ),
+              ),
+              _buildChatInput(),
+            ],
           ),
-          SizedBox(
-            height: 280,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: recommendations.length,
-              itemBuilder: (context, index) {
-                return _buildRecommendationCard(recommendations[index], index);
-              },
+
+          // ── Curated Panel (slides up over chat) ───────────────────────
+          if (_showCuratedPanel && _curatedProperties != null)
+            SlideTransition(
+              position: _panelSlide,
+              child: _buildCuratedPanel(_curatedProperties!),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          20, MediaQuery.of(context).padding.top + 16, 20, 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primaryLight, Colors.purple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(LucideIcons.sparkles, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('SwiftSpace AI',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              Text('Ask me anything about properties',
+                  style: TextStyle(
+                      color: Colors.grey[500], fontSize: 12)),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecommendationCard(Property property, int index) {
-    return FadeInRight(
-      delay: Duration(milliseconds: 200 * index),
-      child: GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => PropertyDetailsScreen(property: property)),
-        ),
+  Widget _buildLoadingBubble() {
+    return FadeInUp(
+      child: Align(
+        alignment: Alignment.centerLeft,
         child: Container(
-          width: 220,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: Colors.grey[100],
+            borderRadius:
+                BorderRadius.circular(18).copyWith(bottomLeft: const Radius.circular(4)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                        image: DecorationImage(
-                          image: NetworkImage(property.imageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(LucideIcons.sparkles, color: Colors.amber, size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              '98% Match',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryLight),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      property.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      property.locationName,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '₦${_formatPrice(property.price)}',
-                          style: TextStyle(
-                            color: AppColors.primaryLight,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Icon(LucideIcons.arrowUpRight, color: Colors.grey[400], size: 16),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              SizedBox(width: 12),
+              Text('Searching properties...',
+                  style: TextStyle(color: Colors.black54, fontSize: 14)),
             ],
           ),
         ),
@@ -376,174 +257,201 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, List<Property> properties) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 40, 24, 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            if (properties.length > 4)
-              TextButton(
-                onPressed: () => _showAllProperties(properties, title),
-                child: const Text(
-                  'See All',
-                  style: TextStyle(
-                    color: AppColors.primaryLight,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+  Widget _buildChatBubble(ChatMessage message) {
+    return FadeInUp(
+      duration: const Duration(milliseconds: 300),
+      child: Column(
+        crossAxisAlignment:
+            message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Align(
+            alignment:
+                message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.78),
+              margin: const EdgeInsets.only(bottom: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: message.isUser
+                    ? const LinearGradient(
+                        colors: [AppColors.primaryLight, Colors.purple],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: message.isUser ? null : Colors.grey[100],
+                borderRadius: BorderRadius.circular(18).copyWith(
+                  bottomRight: message.isUser
+                      ? const Radius.circular(4)
+                      : null,
+                  bottomLeft: !message.isUser
+                      ? const Radius.circular(4)
+                      : null,
                 ),
               ),
+              child: Text(
+                message.text,
+                style: TextStyle(
+                  color: message.isUser ? Colors.white : Colors.black87,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+          if (message.properties != null && message.properties!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildPropertiesCarousel(message.properties!),
+          ],
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPropertiesCarousel(List<Property> properties) {
+    return SizedBox(
+      height: 260,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: properties.length + 1, // +1 for "View All" card
+        itemBuilder: (context, index) {
+          if (index == properties.length) {
+            return _buildViewAllCard(properties);
+          }
+          return _buildPropertyCard(properties[index]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildViewAllCard(List<Property> allProperties) {
+    return GestureDetector(
+      onTap: () => _openCuratedPanel(allProperties),
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryLight.withValues(alpha: 0.12),
+              Colors.purple.withValues(alpha: 0.12),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: AppColors.primaryLight.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryLight, Colors.purple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(LucideIcons.layoutGrid, color: Colors.white, size: 22),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Explore All\nCurated',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.primaryLight,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Grid · Map · Swipe',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSmartGrid(List<Property> properties) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      sliver: SliverMasonryGrid.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        itemBuilder: (context, index) {
-          return _buildGridCard(properties[index]);
-        },
-        childCount: properties.length,
+  Widget _buildPropertyCard(Property property) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => PropertyDetailsScreen(property: property)),
       ),
-    );
-  }
-
-  Widget _buildGridCard(Property property) {
-    final isPremium = property.isPremium;
-    return FadeInUp(
-      child: GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => PropertyDetailsScreen(property: property)),
+      child: Container(
+        width: 210,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
-            border: isPremium
-                ? Border.all(color: const Color(0xFFF57C00).withValues(alpha: 0.6), width: 1.5)
-                : Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
-            boxShadow: [
-              BoxShadow(
-                color: isPremium
-                    ? const Color(0xFFF57C00).withValues(alpha: 0.12)
-                    : Colors.black.withValues(alpha: 0.03),
-                blurRadius: isPremium ? 16 : 10,
-                offset: const Offset(0, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                child: CachedNetworkImage(
+                  imageUrl: property.imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                    child: Image.network(
-                      property.imageUrl,
-                      fit: BoxFit.cover,
-                      height: isPremium ? 160 : 130,
-                      width: double.infinity,
-                    ),
-                  ),
-                  // Premium badge overlay
-                  if (isPremium)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB300), Color(0xFFF57C00)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFF57C00).withValues(alpha: 0.4),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(LucideIcons.star, color: Colors.white, size: 10),
-                            SizedBox(width: 4),
-                            Text(
-                              'PREMIUM',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Lock icon for non-unlocked premium
-                  if (isPremium)
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(LucideIcons.lock, color: Colors.white, size: 10),
-                      ),
-                    ),
-                ],
-              ),
-              Padding(
+            ),
+            Expanded(
+              flex: 4,
+              child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       property.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '₦${_formatPrice(property.price)}',
-                      style: TextStyle(
-                        color: isPremium ? const Color(0xFFF57C00) : AppColors.primaryLight,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(
+                          color: AppColors.primaryLight,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13),
                     ),
-                    const SizedBox(height: 8),
+                    const Spacer(),
                     Row(
                       children: [
-                        Icon(LucideIcons.mapPin, size: 10, color: Colors.grey[400]),
-                        const SizedBox(width: 4),
+                        Icon(LucideIcons.mapPin,
+                            size: 11, color: Colors.grey[500]),
+                        const SizedBox(width: 3),
                         Expanded(
                           child: Text(
                             property.locationName,
-                            style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                            style: TextStyle(
+                                color: Colors.grey[500], fontSize: 11),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -553,35 +461,270 @@ class _SmartExploreScreenState extends State<SmartExploreScreen> {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  // ── Curated Full-Screen Panel ──────────────────────────────────────────
 
-  String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M';
-    } else if (price >= 1000) {
-      return '${(price / 1000).toStringAsFixed(0)}K';
-    }
-    return price.toStringAsFixed(0);
+  Widget _buildCuratedPanel(List<Property> properties) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: Column(
+        children: [
+          _buildPanelHeader(properties),
+          Expanded(child: _buildActiveView(properties)),
+        ],
+      ),
+    );
   }
 
-  List<Property> _getAIRecommendations(List<Property> properties, UserPreferencesProvider prefs) {
-    // Basic recommendation logic
-    final scored = properties.map((p) {
-      double score = 100.0;
-      if (p.price < prefs.minPrice || p.price > prefs.maxPrice) score -= 20;
-      if (prefs.preferredType != null && p.type != prefs.preferredType) score -= 30;
-      if (p.isVerified) score += 10;
-      if (p.isPremium) score += 15;
-      return MapEntry(p, score);
-    }).toList();
+  Widget _buildPanelHeader(List<Property> properties) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          20, MediaQuery.of(context).padding.top + 12, 20, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.04),
+            offset: const Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _closeCuratedPanel,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(LucideIcons.chevronDown, size: 20, color: isDark ? Colors.white : Colors.black87),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('AI Curated Picks',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                Text('${properties.length} properties matched',
+                    style:
+                        TextStyle(color: Colors.grey[500], fontSize: 12)),
+              ],
+            ),
+          ),
+          _buildViewModeDropdown(),
+        ],
+      ),
+    );
+  }
 
-    scored.sort((a, b) => b.value.compareTo(a.value));
-    return scored.take(5).map((e) => e.key).toList();
+  Widget _buildViewModeDropdown() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    IconData currentIcon;
+    switch (_curatedViewMode) {
+      case _CuratedViewMode.grid:
+        currentIcon = LucideIcons.layoutGrid;
+      case _CuratedViewMode.map:
+        currentIcon = LucideIcons.map;
+      case _CuratedViewMode.swipe:
+        currentIcon = LucideIcons.playSquare;
+    }
+
+    return PopupMenuButton<_CuratedViewMode>(
+      initialValue: _curatedViewMode,
+      onSelected: (mode) => setState(() => _curatedViewMode = mode),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isDark ? Colors.grey[900] : Colors.white,
+      offset: const Offset(0, 45),
+      elevation: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.primaryLight, Colors.purple],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryLight.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(currentIcon, size: 18, color: Colors.white),
+            const SizedBox(width: 6),
+            const Icon(LucideIcons.chevronDown, size: 14, color: Colors.white),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        _buildPopupMenuItem(_CuratedViewMode.grid, LucideIcons.layoutGrid, 'Grid View'),
+        _buildPopupMenuItem(_CuratedViewMode.map, LucideIcons.map, 'Map View'),
+        _buildPopupMenuItem(_CuratedViewMode.swipe, LucideIcons.playSquare, 'Swipe View'),
+      ],
+    );
+  }
+
+  PopupMenuItem<_CuratedViewMode> _buildPopupMenuItem(
+      _CuratedViewMode mode, IconData icon, String label) {
+    final isSelected = _curatedViewMode == mode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return PopupMenuItem(
+      value: mode,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: isSelected ? AppColors.primaryLight : (isDark ? Colors.grey[400] : Colors.grey[600])),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.primaryLight : (isDark ? Colors.white : Colors.black87),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveView(List<Property> properties) {
+    switch (_curatedViewMode) {
+      case _CuratedViewMode.grid:
+        return GridExploreScreen(curatedProperties: properties);
+      case _CuratedViewMode.map:
+        return MapExploreScreen(curatedProperties: properties);
+      case _CuratedViewMode.swipe:
+        return TikTokExploreScreen(curatedProperties: properties);
+    }
+  }
+
+  Widget _buildChatInput() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
+            offset: const Offset(0, -4),
+            blurRadius: 20,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[900] : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                  width: 1,
+                ),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: AppColors.primaryLight.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    )
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.sparkles, 
+                      size: 18, 
+                      color: AppColors.primaryLight.withValues(alpha: 0.7)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _chatController,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Describe your ideal property...',
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.grey[500] : Colors.grey[400],
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _isLoading ? null : _sendMessage,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: _isLoading
+                    ? null
+                    : const LinearGradient(
+                        colors: [AppColors.primaryLight, Colors.purple],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                color: _isLoading 
+                    ? (isDark ? Colors.grey[800] : Colors.grey[300]) 
+                    : null,
+                shape: BoxShape.circle,
+                boxShadow: _isLoading ? null : [
+                  BoxShadow(
+                    color: AppColors.primaryLight.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(LucideIcons.send, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPrice(double price) {
+    if (price >= 1000000) return '${(price / 1000000).toStringAsFixed(1)}M';
+    if (price >= 1000) return '${(price / 1000).toStringAsFixed(0)}K';
+    return price.toStringAsFixed(0);
   }
 }

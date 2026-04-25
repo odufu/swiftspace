@@ -78,11 +78,22 @@ class _SplashScreenState extends State<SplashScreen>
 
     // 2. Try to ensure Supabase is initialized if it failed during main()
     try {
-      if (!Supabase.instance.client.auth.currentSession.toString().contains('SupabaseClient')) {
-         // This is a bit hacky but we want to ensure we have a client if initialization failed
-         await SupabaseService.initialize();
+      // Use a safer way to check if Supabase is initialized
+      bool isInitialized = false;
+      try {
+        Supabase.instance.client;
+        isInitialized = true;
+      } catch (_) {
+        isInitialized = false;
       }
-    } catch (_) {}
+
+      if (!isInitialized) {
+         // Attempt initialization with a timeout
+         await SupabaseService.initialize().timeout(const Duration(seconds: 5));
+      }
+    } catch (e) {
+      debugPrint('SplashScreen: Supabase Re-init failed/timed out: $e');
+    }
 
     // Wait for the animation + artificial delay
     await Future.delayed(const Duration(milliseconds: 2000));

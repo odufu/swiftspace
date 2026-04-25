@@ -104,9 +104,15 @@ class AuthRepository {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10));
       return UserProfile.fromJson(data);
     } catch (e) {
+      debugPrint('AuthRepository: getUserProfile error: $e');
+      // If it's a handshake/network error, we might want to know
+      if (e.toString().toLowerCase().contains('handshake')) {
+         debugPrint('AuthRepository: Handshake failure detected during profile load.');
+      }
       // We don't throw here to allow null profiles for new users
       return null;
     }
@@ -151,7 +157,11 @@ class AuthRepository {
         'role': role.name,
         if (isVerified != null) 'is_verified': isVerified,
       };
-      await _client.from('profiles').update(updates).eq('id', userId);
+      await _client
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw AppException.fromSupabase(e);
     }

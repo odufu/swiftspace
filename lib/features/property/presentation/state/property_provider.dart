@@ -54,6 +54,52 @@ class PropertyProvider extends ChangeNotifier {
 
   List<Property> get testProperties => _properties.where((p) => p.isTest).toList();
 
+  Property? getBestOffer(List<String> priorities, {double? minPrice, double? maxPrice, PropertyType? type, String? location}) {
+    final filtered = _properties.where((p) {
+      if (!p.isActive) return false;
+      if (minPrice != null && p.price < minPrice) return false;
+      if (maxPrice != null && p.price > maxPrice) return false;
+      if (type != null && p.type != type) return false;
+      if (location != null && location.isNotEmpty && !p.locationName.toLowerCase().contains(location.toLowerCase())) return false;
+      return true;
+    }).toList();
+
+    if (filtered.isEmpty) return null;
+
+    // AI Scoring Logic based on priority checklist
+    Property? best;
+    double bestScore = -1.0;
+
+    for (var p in filtered) {
+      double score = 0;
+      for (int i = 0; i < priorities.length; i++) {
+        final priority = priorities[i].toLowerCase();
+        final weight = (priorities.length - i) / priorities.length;
+
+        if (priority == 'price') {
+          // Favor lower prices within the range
+          score += (1.0 - (p.price / 10000000).clamp(0, 1)) * weight;
+        } else if (priority == 'road') {
+          if (p.description.toLowerCase().contains('road') || p.description.toLowerCase().contains('accessible')) score += 1.0 * weight;
+        } else if (priority == 'utilities') {
+          if (p.description.toLowerCase().contains('water') || p.description.toLowerCase().contains('light')) score += 1.0 * weight;
+        } else if (priority == 'hospital' || priority == 'clinic') {
+          if (p.description.toLowerCase().contains('hospital') || p.description.toLowerCase().contains('medical')) score += 1.0 * weight;
+        }
+      }
+
+      if (p.isPremium) score += 0.5; // Premium properties get a boost
+      if (p.isVerified) score += 0.3; // Verified properties get a boost
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+
+    return best;
+  }
+
 
   // Statistics for the dashboard
   int get totalProperties => _properties.length;

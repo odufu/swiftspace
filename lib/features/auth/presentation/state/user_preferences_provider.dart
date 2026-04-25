@@ -11,7 +11,7 @@ class UserPreferencesProvider extends ChangeNotifier {
   int _currentTabIndex = 0;
   String? _mapFocusPropertyId;
   bool _isAgent = false;
-  ExploreViewType _preferredExploreView = ExploreViewType.grid;
+  ExploreViewType _preferredExploreView = ExploreViewType.smart;
 
   // Getters
   int get currentTabIndex => _currentTabIndex;
