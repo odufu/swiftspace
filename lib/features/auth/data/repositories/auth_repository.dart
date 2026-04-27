@@ -63,7 +63,7 @@ class AuthRepository {
       if (kIsWeb) {
         await _client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: Uri.base.origin,
+          redirectTo: kIsWeb ? Uri.base.toString().split('?').first : null,
           authScreenLaunchMode: LaunchMode.externalApplication,
         );
         return;
