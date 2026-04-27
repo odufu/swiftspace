@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:animate_do/animate_do.dart';
+import 'dart:ui';
 import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
@@ -100,18 +101,16 @@ class _SmartExploreScreenState extends State<SmartExploreScreen>
 
       setState(() {
         _isLoading = false;
-        if (results.isEmpty) {
+        if (results.properties.isEmpty) {
           _messages.add(ChatMessage(
-            text:
-                "I couldn't find any exact matches for that. Try broadening your search or adjusting your budget.",
+            text: results.contextSummary,
             isUser: false,
           ));
         } else {
           _messages.add(ChatMessage(
-            text:
-                "Found ${results.length} properties that match your criteria. Here are your top picks:",
+            text: results.contextSummary,
             isUser: false,
-            properties: results,
+            properties: results.properties,
           ));
         }
       });
@@ -159,6 +158,9 @@ class _SmartExploreScreenState extends State<SmartExploreScreen>
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: _messages.length + (_isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (_messages.isEmpty && index == 0 && !_isLoading) {
+                      return _buildSuggestedQueries();
+                    }
                     if (index == _messages.length && _isLoading) {
                       return _buildLoadingBubble();
                     }
@@ -238,20 +240,97 @@ class _SmartExploreScreenState extends State<SmartExploreScreen>
             borderRadius:
                 BorderRadius.circular(18).copyWith(bottomLeft: const Radius.circular(4)),
           ),
-          child: const Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryLight),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.primaryLight),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Searching properties...',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14, fontWeight: FontWeight.bold)),
+                ],
               ),
-              SizedBox(width: 12),
-              Text('Searching properties...',
-                  style: TextStyle(color: Colors.black54, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text('Checking real-time availability and proximity...',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestedQueries() {
+    final suggestions = [
+      'Luxury Duplex in Maitama',
+      'Affordable flats in Gwarinpa',
+      'Office space near Jabi Lake',
+      'Self-contained within Abuja',
+      'Premium shops in Wuse 2',
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Try searching for:',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 10,
+            children: suggestions.map((s) => _buildSuggestionChip(s)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionChip(String label) {
+    return GestureDetector(
+      onTap: () {
+        _chatController.text = label;
+        _sendMessage();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey[300]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.search, size: 14, color: AppColors.primaryLight),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ],
         ),
       ),
     );
@@ -412,10 +491,59 @@ class _SmartExploreScreenState extends State<SmartExploreScreen>
               child: ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(20)),
-                child: CachedNetworkImage(
-                  imageUrl: property.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: property.imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    if (property.isPremium)
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withValues(alpha: 0.2),
+                                border: Border.all(
+                                  color: Colors.amber.withValues(alpha: 0.3),
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    LucideIcons.gem,
+                                    color: Colors.amber,
+                                    size: 12,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'PREMIUM',
+                                    style: TextStyle(
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 10,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

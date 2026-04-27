@@ -204,6 +204,10 @@ class AuthRepository {
     String? governmentIdUrl,
     String? brokerLicenseUrl,
     bool? termsAccepted,
+    String? phoneNumber,
+    String? about,
+    String? officeAddress,
+    List<String>? specialties,
   }) async {
     try {
       final updates = {
@@ -213,15 +217,21 @@ class AuthRepository {
         if (governmentIdUrl != null) 'government_id_url': governmentIdUrl,
         if (brokerLicenseUrl != null) 'broker_license_url': brokerLicenseUrl,
         if (termsAccepted != null) 'terms_accepted': termsAccepted,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (about != null) 'about': about,
+        if (officeAddress != null) 'office_address': officeAddress,
+        if (specialties != null) 'specialties': specialties,
       };
-      
+
       // Remove keys with undefined values if they weren't explicitly passed
-      // but were mentioned in the signature.
-      // Actually, for URLs we want to allow null to clear them.
       if (yearsExperience == null) updates.remove('years_experience');
       if (fullName == null) updates.remove('full_name');
       if (avatarUrl == null) updates.remove('avatar_url');
       if (termsAccepted == null) updates.remove('terms_accepted');
+      if (phoneNumber == null) updates.remove('phone_number');
+      if (about == null) updates.remove('about');
+      if (officeAddress == null) updates.remove('office_address');
+      if (specialties == null) updates.remove('specialties');
 
       await _client.from('profiles').update(updates).eq('id', userId);
     } catch (e) {

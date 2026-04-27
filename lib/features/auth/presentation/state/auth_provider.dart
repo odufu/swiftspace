@@ -214,6 +214,10 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> updateProfile({
     String? fullName, 
+    String? phoneNumber,
+    String? about,
+    String? officeAddress,
+    List<String>? specialties,
     String? imagePath,
     Uint8List? imageBytes,
     String? imageName,
@@ -230,11 +234,23 @@ class AuthProvider extends ChangeNotifier {
         avatarUrl = await _repository.uploadAvatar(imagePath, _user!.id);
       }
 
-      await _repository.updateProfile(_user!.id, fullName: fullName, avatarUrl: avatarUrl);
+      await _repository.updateProfile(
+        _user!.id, 
+        fullName: fullName, 
+        avatarUrl: avatarUrl,
+        phoneNumber: phoneNumber,
+        about: about,
+        officeAddress: officeAddress,
+        specialties: specialties,
+      );
       
       _profile = _profile?.copyWith(
         fullName: fullName ?? _profile?.fullName,
         avatarUrl: avatarUrl ?? _profile?.avatarUrl,
+        phoneNumber: phoneNumber ?? _profile?.phoneNumber,
+        about: about ?? _profile?.about,
+        officeAddress: officeAddress ?? _profile?.officeAddress,
+        specialties: specialties ?? _profile?.specialties,
       );
     } finally {
       _isLoading = false;

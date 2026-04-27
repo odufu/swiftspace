@@ -51,6 +51,8 @@ Future<void> main() async {
         Type: ${property['type']}
         Bedrooms: ${property['beds']}
         Bathrooms: ${property['baths']}
+        Amenities: ${(property['amenities'] as List?)?.join(', ') ?? ''}
+        Listed By: ${property['lister_name']} ${property['company_name'] != null ? '(${property['company_name']})' : ''}
       '''.trim();
 
       // Call Gemini API — use gemini-embedding-001 (text-embedding-004 is deprecated)

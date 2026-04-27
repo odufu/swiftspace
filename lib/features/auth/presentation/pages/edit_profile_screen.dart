@@ -18,6 +18,9 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _aboutController = TextEditingController();
+  final _addressController = TextEditingController();
   XFile? _pickedFile;
   Uint8List? _imageBytes;
   final _picker = ImagePicker();
@@ -27,11 +30,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final profile = Provider.of<AuthProvider>(context, listen: false).profile;
     _nameController.text = profile?.fullName ?? '';
+    _phoneController.text = profile?.phoneNumber ?? '';
+    _aboutController.text = profile?.about ?? '';
+    _addressController.text = profile?.officeAddress ?? '';
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
+    _aboutController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -58,6 +67,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       await authProvider.updateProfile(
         fullName: _nameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        about: _aboutController.text.trim(),
+        officeAddress: _addressController.text.trim(),
         imagePath: kIsWeb ? null : _pickedFile?.path,
         imageBytes: _imageBytes,
         imageName: _pickedFile?.name,
@@ -201,6 +213,73 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     'Email cannot be changed',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Phone Number
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: const Icon(LucideIcons.phone, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Office Address
+                  TextField(
+                    controller: _addressController,
+                    decoration: InputDecoration(
+                      labelText: 'Office Address',
+                      prefixIcon: const Icon(LucideIcons.mapPin, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // About Me
+                  TextField(
+                    controller: _aboutController,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      labelText: 'About Me',
+                      alignLabelWithHint: true,
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(bottom: 80.0),
+                        child: Icon(LucideIcons.info, size: 20),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),

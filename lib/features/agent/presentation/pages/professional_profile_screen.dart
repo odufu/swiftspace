@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
@@ -11,6 +12,7 @@ import 'package:swiftspace/core/constants/app_constants.dart';
 class ProfessionalProfileScreen extends StatefulWidget {
   final String listerId;
   final String listerName;
+  final String agentPhone;
   final ListerType listerType;
   final String? companyName;
   final String? listerLogoUrl;
@@ -20,6 +22,7 @@ class ProfessionalProfileScreen extends StatefulWidget {
     super.key,
     required this.listerId,
     required this.listerName,
+    required this.agentPhone,
     required this.listerType,
     this.companyName,
     this.listerLogoUrl,
@@ -53,6 +56,30 @@ class _ProfessionalProfileScreenState extends State<ProfessionalProfileScreen> w
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _launchPhone() async {
+    final Uri url = Uri.parse('tel:${widget.agentPhone}');
+    if (!await launchUrl(url)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch phone dialer'))
+        );
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp() async {
+    // Basic WhatsApp deep link
+    final String cleanPhone = widget.agentPhone.replaceAll(RegExp(r'\D'), '');
+    final Uri url = Uri.parse('https://wa.me/$cleanPhone');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch WhatsApp'))
+        );
+      }
+    }
   }
 
   @override
@@ -239,11 +266,11 @@ class _ProfessionalProfileScreenState extends State<ProfessionalProfileScreen> w
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {},
+                          onPressed: _launchWhatsApp,
                           icon: const Icon(LucideIcons.messageSquare, size: 18),
-                          label: const Text("Message"),
+                          label: const Text("WhatsApp"),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
+                            backgroundColor: Colors.green[600],
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -258,11 +285,7 @@ class _ProfessionalProfileScreenState extends State<ProfessionalProfileScreen> w
                         ),
                         child: IconButton(
                           icon: const Icon(LucideIcons.phone, size: 20),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Initiating call..."))
-                            );
-                          },
+                          onPressed: _launchPhone,
                           color: theme.colorScheme.primary,
                         ),
                       ),

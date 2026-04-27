@@ -33,7 +33,9 @@ class _TikTokExploreScreenState extends State<TikTokExploreScreen> {
   @override
   Widget build(BuildContext context) {
     // Only show live properties representing feed or curated list
-    final properties = widget.curatedProperties ?? Provider.of<PropertyProvider>(context).liveProperties;
+    final properties =
+        widget.curatedProperties ??
+        Provider.of<PropertyProvider>(context).liveProperties;
 
     // Filter to only active and feed-ready properties (optional extra filtering here)
     if (properties.isEmpty) {
@@ -45,7 +47,13 @@ class _TikTokExploreScreenState extends State<TikTokExploreScreen> {
             children: const [
               Icon(LucideIcons.home, color: Colors.white54, size: 48),
               SizedBox(height: 16),
-              Text('No properties found.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text(
+                'No properties found.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -90,7 +98,9 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
   }
 
   Future<void> _initVideo() async {
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.property.videoUrl!));
+    _videoController = VideoPlayerController.networkUrl(
+      Uri.parse(widget.property.videoUrl!),
+    );
     await _videoController!.initialize();
     _videoController!.setLooping(true);
     _videoController!.setVolume(_isMuted ? 0.0 : 1.0);
@@ -142,7 +152,8 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
             imageUrl: widget.property.imageUrl,
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(color: Colors.grey[900]),
-            errorWidget: (context, url, error) => Container(color: Colors.grey[900]),
+            errorWidget: (context, url, error) =>
+                Container(color: Colors.grey[900]),
           ),
 
         // Gradient darkening at the bottom
@@ -150,7 +161,10 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.8),
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 stops: const [0.6, 1.0],
@@ -170,50 +184,85 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
             children: [
               Row(
                 children: [
-                   Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.teal.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
-                      child: Text(
-                        widget.property.type.name.toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      widget.property.type.name.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
-                   ),
-                   const SizedBox(width: 8),
-                   if (widget.property.isPremium)
-                     const Padding(
-                       padding: EdgeInsets.only(bottom: 4),
-                       child: PremiumBadge(),
-                     )
-                   else if (widget.property.isVerified)
-                     Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(4)),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.verified, color: Colors.white, size: 10),
-                            SizedBox(width: 4),
-                            Text('VERIFIED', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ]
-                        ),
-                     ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (widget.property.isPremium)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 4),
+                      child: PremiumBadge(),
+                    )
+                  else if (widget.property.isVerified)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.verified, color: Colors.white, size: 10),
+                          SizedBox(width: 4),
+                          Text(
+                            'VERIFIED',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
                 widget.property.title,
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, height: 1.2),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(LucideIcons.mapPin, color: Colors.white70, size: 14),
+                  const Icon(
+                    LucideIcons.mapPin,
+                    color: Colors.white70,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       widget.property.locationName,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -223,7 +272,11 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
               const SizedBox(height: 8),
               Text(
                 widget.property.formattedPrice,
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -249,6 +302,7 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                         companyName: widget.property.companyName,
                         listerLogoUrl: widget.property.listerLogoUrl,
                         isVerified: widget.property.isVerified,
+                        agentPhone: '',
                       ),
                     ),
                   );
@@ -260,14 +314,21 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     image: widget.property.listerLogoUrl != null
-                        ? DecorationImage(image: CachedNetworkImageProvider(widget.property.listerLogoUrl!), fit: BoxFit.cover)
+                        ? DecorationImage(
+                            image: CachedNetworkImageProvider(
+                              widget.property.listerLogoUrl!,
+                            ),
+                            fit: BoxFit.cover,
+                          )
                         : null,
                   ),
-                  child: widget.property.listerLogoUrl == null ? const Icon(LucideIcons.user, color: Colors.white) : null,
+                  child: widget.property.listerLogoUrl == null
+                      ? const Icon(LucideIcons.user, color: Colors.white)
+                      : null,
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Like Button
               GestureDetector(
                 onTap: () {
@@ -284,7 +345,11 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                     const SizedBox(height: 4),
                     Text(
                       '${widget.property.favoritesCount + (isFavorite ? 1 : 0)}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -296,19 +361,36 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                 onTap: () {
                   sl<AudioManager>().playClick(context);
                   Navigator.push(
-                    context, 
-                    MaterialPageRoute(builder: (context) => PropertyDetailsScreen(property: widget.property)),
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PropertyDetailsScreen(property: widget.property),
+                    ),
                   );
                 },
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                      child: const Icon(LucideIcons.info, color: Colors.white, size: 22),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        LucideIcons.info,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    const Text('Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    const Text(
+                      'Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -327,18 +409,32 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.5), shape: BoxShape.circle),
-                        child: Icon(_isMuted ? LucideIcons.volumeX : LucideIcons.volume2, color: Colors.white, size: 22),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _isMuted ? LucideIcons.volumeX : LucideIcons.volume2,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      Text(_isMuted ? 'Muted' : 'Sound', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text(
+                        _isMuted ? 'Muted' : 'Sound',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ),
             ],
           ),
         ),
-        
+
         // 4. Safe Area Top header
         Positioned(
           top: MediaQuery.of(context).padding.top + 16,
@@ -349,17 +445,22 @@ class _TikTokFeedItemState extends State<_TikTokFeedItem> {
             children: [
               const Text(
                 'Discover For You',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, shadows: [Shadow(blurRadius: 10, color: Colors.black)]),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  shadows: [Shadow(blurRadius: 10, color: Colors.black)],
+                ),
               ),
               IconButton(
                 icon: const Icon(LucideIcons.filter, color: Colors.white),
                 onPressed: () {
-                   // Pop up filters if needed (Can hook into existing Grid grid filters logic)
+                  // Pop up filters if needed (Can hook into existing Grid grid filters logic)
                 },
               ),
             ],
           ),
-        )
+        ),
       ],
     );
   }

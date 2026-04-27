@@ -143,6 +143,36 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                       backgroundColor: theme.colorScheme.primary,
                     ),
+                    if (profile?.about != null && profile!.about!.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          profile.about!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                            height: 1.5,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (profile?.phoneNumber != null || profile?.officeAddress != null) ...[
+                      const SizedBox(height: 16),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 16,
+                        runSpacing: 8,
+                        children: [
+                          if (profile?.phoneNumber != null && profile!.phoneNumber!.isNotEmpty)
+                            _buildMiniInfo(LucideIcons.phone, profile.phoneNumber!),
+                          if (profile?.officeAddress != null && profile!.officeAddress!.isNotEmpty)
+                            _buildMiniInfo(LucideIcons.mapPin, profile.officeAddress!),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -234,6 +264,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMiniInfo(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
     );
   }
 

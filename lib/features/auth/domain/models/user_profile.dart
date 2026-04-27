@@ -41,6 +41,10 @@ class UserProfile {
   final String? governmentIdUrl;
   final String? brokerLicenseUrl;
   final bool termsAccepted;
+  final String? phoneNumber;
+  final String? about;
+  final String? officeAddress;
+  final List<String> specialties;
   final bool isBlocked;
   final DateTime? createdAt;
 
@@ -55,6 +59,10 @@ class UserProfile {
     this.governmentIdUrl,
     this.brokerLicenseUrl,
     this.termsAccepted = false,
+    this.phoneNumber,
+    this.about,
+    this.officeAddress,
+    this.specialties = const [],
     this.isBlocked = false,
     this.createdAt,
   });
@@ -71,6 +79,13 @@ class UserProfile {
       governmentIdUrl: json['government_id_url'] as String?,
       brokerLicenseUrl: json['broker_license_url'] as String?,
       termsAccepted: json['terms_accepted'] as bool? ?? false,
+      phoneNumber: json['phone_number'] as String?,
+      about: json['about'] as String?,
+      officeAddress: json['office_address'] as String?,
+      specialties: (json['specialties'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
       isBlocked: json['is_blocked'] as bool? ?? false,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
@@ -90,6 +105,10 @@ class UserProfile {
       'government_id_url': governmentIdUrl,
       'broker_license_url': brokerLicenseUrl,
       'terms_accepted': termsAccepted,
+      'phone_number': phoneNumber,
+      'about': about,
+      'office_address': officeAddress,
+      'specialties': specialties,
       'is_blocked': isBlocked,
     };
   }
@@ -125,6 +144,10 @@ class UserProfile {
     String? governmentIdUrl,
     String? brokerLicenseUrl,
     bool? termsAccepted,
+    String? phoneNumber,
+    String? about,
+    String? officeAddress,
+    List<String>? specialties,
     bool? isBlocked,
   }) {
     return UserProfile(
@@ -138,6 +161,10 @@ class UserProfile {
       governmentIdUrl: governmentIdUrl ?? this.governmentIdUrl,
       brokerLicenseUrl: brokerLicenseUrl ?? this.brokerLicenseUrl,
       termsAccepted: termsAccepted ?? this.termsAccepted,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      about: about ?? this.about,
+      officeAddress: officeAddress ?? this.officeAddress,
+      specialties: specialties ?? this.specialties,
       isBlocked: isBlocked ?? this.isBlocked,
       createdAt: createdAt,
     );
