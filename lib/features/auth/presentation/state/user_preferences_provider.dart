@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
 
+enum ExploreViewType { grid, tiktok, map, smart }
+
 class UserPreferencesProvider extends ChangeNotifier {
   double _minPrice = 0;
   double _maxPrice = 5000000;
@@ -9,9 +11,11 @@ class UserPreferencesProvider extends ChangeNotifier {
   int _currentTabIndex = 0;
   String? _mapFocusPropertyId;
   bool _isAgent = false;
+  ExploreViewType _preferredExploreView = ExploreViewType.smart;
 
   // Getters
   int get currentTabIndex => _currentTabIndex;
+  ExploreViewType get preferredExploreView => _preferredExploreView;
   String? get mapFocusPropertyId => _mapFocusPropertyId;
   bool get isAgent => _isAgent;
 
@@ -59,6 +63,12 @@ class UserPreferencesProvider extends ChangeNotifier {
     _soundEnabled = prefs.getBool('setting_soundEnabled') ?? true;
     _hapticsEnabled = prefs.getBool('setting_hapticsEnabled') ?? true;
     _bestOfferPriorities = prefs.getStringList('bestOfferPriorities') ?? ['price', 'road', 'utilities', 'hospital'];
+    
+    final viewIndex = prefs.getInt('setting_exploreViewType');
+    if (viewIndex != null && viewIndex >= 0 && viewIndex < ExploreViewType.values.length) {
+      _preferredExploreView = ExploreViewType.values[viewIndex];
+    }
+    
     notifyListeners();
   }
 
@@ -104,6 +114,13 @@ class UserPreferencesProvider extends ChangeNotifier {
     _hapticsEnabled = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('setting_hapticsEnabled', value);
+    notifyListeners();
+  }
+
+  Future<void> setExploreView(ExploreViewType type) async {
+    _preferredExploreView = type;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('setting_exploreViewType', type.index);
     notifyListeners();
   }
 }

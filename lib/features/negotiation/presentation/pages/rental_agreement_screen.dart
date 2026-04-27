@@ -249,7 +249,7 @@ class _RentalAgreementScreenState extends State<RentalAgreementScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 48),
               child: Text(
-                'Digital Handover Complete. Your funds in escrow are now ready for release upon move-in.',
+                'Digital Handover Complete. The tenancy agreement has been signed and recorded.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, fontSize: 16),
               ),

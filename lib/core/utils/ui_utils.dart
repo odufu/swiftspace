@@ -45,6 +45,18 @@ class UiUtils {
     );
   }
 
+  static void showWarning(BuildContext context, String message) {
+    _showCustomSnackBar(
+      context,
+      message: message,
+      icon: LucideIcons.alertTriangle,
+      backgroundColor: const Color(0xFFFFF8E1),
+      borderColor: AppColors.warning,
+      iconColor: AppColors.warning,
+      textColor: const Color(0xFF5D4037),
+    );
+  }
+
   static void _showCustomSnackBar(
     BuildContext context, {
     required String message,

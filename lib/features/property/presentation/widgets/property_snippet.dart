@@ -7,6 +7,7 @@ import 'package:swiftspace/features/booking/presentation/state/booking_provider.
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
 import 'package:swiftspace/features/booking/presentation/pages/inspection_management_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:swiftspace/core/presentation/widgets/common/premium_badge.dart';
 
 class PropertySnippet extends StatelessWidget {
   final Property property;
@@ -108,6 +109,12 @@ class PropertySnippet extends StatelessWidget {
                   },
                 ),
               ),
+              if (property.isPremium)
+                const Positioned(
+                  top: 12,
+                  left: 12,
+                  child: PremiumBadge(),
+                ),
               // Price Tag Overlay
               Positioned(
                 bottom: 12,

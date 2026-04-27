@@ -54,8 +54,7 @@ class AdminProvider with ChangeNotifier {
       await _authRepository.updateUserStatus(userId, isBlocked: block);
       final index = _allUsers.indexWhere((u) => u.id == userId);
       if (index != -1) {
-        // Since UserProfile doesn't have an isBlocked field yet, we'll just refresh for now
-        // or we could add it to the model.
+        // UserProfile now has isBlocked field, so we update the local state and refresh
         await fetchAllData();
       }
     } catch (e) {

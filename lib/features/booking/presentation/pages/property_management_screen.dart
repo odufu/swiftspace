@@ -9,7 +9,6 @@ import 'package:swiftspace/features/booking/presentation/state/booking_provider.
 import 'package:swiftspace/features/chat/presentation/state/chat_provider.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/video_player_screen.dart';
 import 'package:swiftspace/features/media_ai/presentation/pages/virtual_walkthrough_screen.dart';
 import 'package:swiftspace/features/chat/presentation/pages/chat_detail_screen.dart';
@@ -38,7 +37,6 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
   late TabController _tabController;
   bool _isOwnershipTransferred = false;
   bool _isLeaseSigned = false;
-  bool _isPaid = false;
   bool _isMovedIn = false;
 
   @override
@@ -134,7 +132,6 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
                 tabs: const [
                   Tab(text: 'Summary'),
                   Tab(text: 'Chat'),
-                  Tab(text: 'Financials'),
                 ],
               ),
             ),
@@ -145,7 +142,6 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
           children: [
             _buildSummaryTab(theme, isDark),
             _buildChatTab(),
-            _buildFinancialsTab(theme, isDark),
           ],
         ),
       ),
@@ -223,8 +219,8 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
     final List<Map<String, dynamic>> stages = [
       {'label': 'Visit', 'icon': LucideIcons.calendar},
       {'label': 'Negotiate', 'icon': LucideIcons.messageSquare},
-      {'label': 'Sign', 'icon': LucideIcons.penTool},
-      {'label': 'Pay', 'icon': LucideIcons.creditCard},
+      {'label': 'Sign Docs', 'icon': LucideIcons.penTool},
+      {'label': 'Possession', 'icon': LucideIcons.key},
     ];
 
     return Column(
@@ -298,27 +294,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
              Provider.of<BookingProvider>(context, listen: false).finalizeInspection(booking.id, 'Simulated finalization.');
              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Status set to Finalized (Ready to Approve)')));
           }, theme),
-          const SizedBox(height: 12),
           _simButton('Skip to Agreement', () {
              final booking = widget.commitment.originalObject as InspectionBooking;
              Provider.of<BookingProvider>(context, listen: false).rateAgent(booking.id, 5, 'Auto-approved.');
-             final negProvider = Provider.of<NegotiationProvider>(context, listen: false);
-             if (negProvider.getSessionByBookingId(booking.id) == null) {
-                negProvider.startNegotiation(booking.id, booking.property, booking.property.price);
-             }
-             final session = negProvider.getSessionByBookingId(booking.id)!;
-             final offer = NegotiationOffer(
-                id: 'SIM-${DateTime.now().millisecondsSinceEpoch}',
-                side: OfferSide.agent,
-                amount: booking.property.price,
-                message: 'Agreed!',
-                timestamp: DateTime.now(),
-             );
-             
-             // Ensure history is mutable and add the offer
-             final updatedHistory = List<NegotiationOffer>.from(session.history)..add(offer);
-             negProvider.updateSession(session.id, status: NegotiationStatus.agreed, history: updatedHistory);
-             
              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Negotiation Agreed (Ready to Sign)')));
           }, theme),
         ],
@@ -531,70 +509,6 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
     return ChatDetailScreen(roomId: room.id);
   }
 
-  Widget _buildFinancialsTab(ThemeData theme, bool isDark) {
-    if (widget.commitment.type == CommitmentType.inspection) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.lock, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            const Text('Financial records available after deal initiation.', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
-    }
-
-    final tx = widget.commitment.originalObject as EscrowTransaction;
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text('Installment Timeline', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-        const SizedBox(height: 20),
-        ...tx.installments.map((inst) => _buildInstallmentTile(inst, theme, tx.id)),
-        const SizedBox(height: 32),
-        const Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        const SizedBox(height: 12),
-        ...tx.invoices.map((inv) => ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(inv.type == 'Receipt' ? LucideIcons.checkCircle : LucideIcons.fileText, color: inv.type == 'Receipt' ? Colors.green : Colors.blue),
-          title: Text('${inv.type} #${inv.id.split('-').last}'),
-          subtitle: Text('${inv.date.day}/${inv.date.month}/${inv.date.year} • ₦${inv.amount.toStringAsFixed(0)}'),
-          trailing: const Icon(LucideIcons.download, size: 18),
-        )),
-      ],
-    );
-  }
-
-  Widget _buildInstallmentTile(EscrowInstallment inst, ThemeData theme, String txId) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: inst.isPaid ? Colors.green.withValues(alpha: 0.2) : (inst.isOverdue ? Colors.red.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.1))),
-      ),
-      child: Row(
-        children: [
-          Icon(inst.isPaid ? LucideIcons.checkCircle2 : (inst.isOverdue ? LucideIcons.alertTriangle : LucideIcons.circle), 
-            color: inst.isPaid ? Colors.green : (inst.isOverdue ? Colors.red : Colors.grey)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(inst.title, style: TextStyle(fontWeight: FontWeight.bold, decoration: inst.isPaid ? TextDecoration.lineThrough : null)),
-                Text('Due: ${inst.dueDate.day}/${inst.dueDate.month}/${inst.dueDate.year}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
-            ),
-          ),
-          Text('₦${(inst.amount / 1000).toStringAsFixed(0)}k', style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
   Widget? _buildContextualActionButton(ThemeData theme) {
     if (widget.isAgent) {
       return _buildAgentActionButtons(theme);
@@ -629,32 +543,10 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
             label = 'Deal Completed';
             color = Colors.grey;
             action = null;
-          } else if (_isPaid) {
+          } else if (_isLeaseSigned) {
             label = 'Confirm Possession';
             color = Colors.green;
             action = () => _confirmMoveIn();
-          } else if (_isLeaseSigned) {
-            label = 'Setup Rent Circle & Pay';
-            color = theme.colorScheme.primary;
-            action = () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EscrowPaymentScreen(
-                    propertyTitle: booking.property.title,
-                    location: booking.property.locationName,
-                    propertyImage: booking.property.imageUrl,
-                    amount: session.history.last.amount,
-                    dealType: 'Initial Rent Security',
-                  ),
-                ),
-              );
-              if (result == true) {
-                if (!mounted) return;
-                setState(() => _isPaid = true);
-                sl<AudioManager>().playSuccess(context);
-              }
-            };
           } else {
             label = 'Sign Tenancy Agreement';
             color = Colors.indigo;
@@ -686,33 +578,9 @@ class _PropertyManagementScreenState extends State<PropertyManagementScreen> wit
         }
       }
     } else {
-      final tx = widget.commitment.originalObject as EscrowTransaction;
-      if (tx.state == EscrowState.overdue) {
-        label = 'Settle Overdue Payment';
-        color = Colors.red;
-        action = () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowPaymentScreen(propertyTitle: tx.propertyTitle, location: tx.location, propertyImage: tx.propertyImage, amount: tx.installments.firstWhere((i) => !i.isPaid).amount, dealType: 'Outstanding Balance')));
-          if (result == true) {
-             if (!mounted) return;
-             MockEscrowStore().payInstallment(tx.id, tx.installments.firstWhere((i) => !i.isPaid).id);
-             setState(() {});
-          }
-        };
-      } else if (tx.state == EscrowState.released) {
-        label = 'Transfer Ownership';
-        color = Colors.indigo;
-        action = _simulateTransferOwnership;
-      } else if (tx.state == EscrowState.inspectionPassed) {
-        label = 'Proceed to Final Deposit';
-        action = () async {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => EscrowPaymentScreen(propertyTitle: tx.propertyTitle, location: tx.location, propertyImage: tx.propertyImage, amount: tx.amount * 0.3, dealType: 'Final Settlement')));
-          if (result == true) {
-            if (!mounted) return;
-            tx.state = EscrowState.released;
-            setState(() {});
-          }
-        };
-      }
+       // Agent View logic for deals
+       label = 'Manage Deal';
+       action = () => {};
     }
 
     if (action == null && widget.commitment.progress < 1.0) return null;

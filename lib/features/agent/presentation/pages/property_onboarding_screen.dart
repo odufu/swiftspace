@@ -1,690 +1,1202 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:swiftspace/features/media_ai/presentation/pages/ai_camera_mapping_screen.dart';
-import 'package:swiftspace/features/payment/presentation/pages/payment_success_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:confetti/confetti.dart';
+import 'package:swiftspace/core/constants/app_constants.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
+import 'package:swiftspace/core/utils/ui_utils.dart';
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
+import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
+import 'package:swiftspace/features/property/presentation/pages/components/media_picker_component.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:swiftspace/features/property/presentation/pages/components/location_picker_component.dart';
 
 class PropertyOnboardingScreen extends StatefulWidget {
   const PropertyOnboardingScreen({super.key});
 
   @override
-  State<PropertyOnboardingScreen> createState() => _PropertyOnboardingScreenState();
+  State<PropertyOnboardingScreen> createState() =>
+      _PropertyOnboardingScreenState();
 }
 
 class _PropertyOnboardingScreenState extends State<PropertyOnboardingScreen> {
   int _currentStep = 0;
-  
-  // Form State
-  String _transactionType = 'Sale'; // Sale, Rent, Rent-To-Own
-  PropertyType _selectedPropertyType = PropertyType.flatsAndApartments;
-  // ignore: unused_field
-  String _title = '';
-  bool _premiumUnlocked = false;
-  
-  // Map State (Mock)
-  double _lat = 9.0765;
-  double _lng = 7.3986;
-  bool _isDraggingMap = false;
+  final int _totalSteps = 7;
+  late ConfettiController _confettiController;
 
-  // Upload States
-  bool _floorPlanUploaded = false;
-  bool _videoUploaded = false;
-  bool _titleUploaded = false;
-  bool _surveyPlanUploaded = false;
-  int _aiNodesMapped = 0;
+  // Step 1: Basics
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+  PropertyType _propertyType = PropertyType.flatsAndApartments;
+  String _priceTerm = 'yr'; // yr, mo, buy
+  bool _isPremium = false; // Whether this listing is premium (gated by paywall)
 
-  final TextEditingController _termsController = TextEditingController();
+  // Step 2: Media
+  List<XFile> _images = [];
+  XFile? _video;
+  XFile? _floorPlan;
+
+  // Step 3: Location
+  LatLng _selectedLocation = const LatLng(9.0765, 7.3986); // Abuja default
+  String _locationName = '';
+
+  // Step 4: Details & Amenities
+  int _beds = 0;
+  int _baths = 0;
+  final List<String> _selectedAmenities = [];
+  final List<String> _allAmenities = [
+    '24/7 Power',
+    'Running Water',
+    'Security Guard',
+    'Fenced & Gated',
+    'Pre-paid Meter',
+    'Generator House',
+    'Tarred Road',
+    'En-suite',
+    'POP Ceiling',
+    'Wardrobe',
+    'Ample Parking',
+    'Swimming Pool',
+    'CCTV Cameras',
+    'Boys Quarters',
+    'Tiled Floors',
+    'Air Conditioning',
+    'Fiber Internet',
+    'Gym',
+    'Playground',
+    'Garden',
+    'Smart Home',
+  ];
+
+  // Proximity Metrics
+  int _proximityToRoad = 100;
+  int _electricityHours = 12;
+  double _proximityToHospital = 2.0;
+
+  // Step 5: Technical Specs
+  int? _yearBuilt;
+  final _sqftController = TextEditingController();
+  String _foundationType = 'Strip Foundation';
+  bool _floodingHistory = false;
+
+  // Step 6: Legal & Documents
+  bool _hasCOofO = false;
+  bool _hasGovernorsConsent = false;
+  bool _hasSurveyPlan = false;
+  bool _hasDeedOfAssignment = false;
+  bool _hasBuildingPlanApproval = false;
+  bool _hasSoilTest = false;
+  bool _hasStructuralReport = false;
+
+  // File objects for legal documents
+  XFile? _fileCOofO;
+  XFile? _fileGovernorsConsent;
+  XFile? _fileSurveyPlan;
+  XFile? _fileDeedOfAssignment;
+  XFile? _fileBuildingPlanApproval;
+  XFile? _fileSoilTest;
+  XFile? _fileStructuralReport;
+
+  final _dueDiligenceController = TextEditingController();
+  bool _lawyerVerified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
+    _loadFormDraft();
+  }
+
+  Future<void> _loadFormDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draftStr = prefs.getString('onboarding_form_draft');
+    if (draftStr != null) {
+      try {
+        final data = jsonDecode(draftStr);
+        setState(() {
+          _titleController.text = data['title'] ?? '';
+          _descriptionController.text = data['description'] ?? '';
+          _priceController.text = data['price'] ?? '';
+          _sqftController.text = data['sqft'] ?? '';
+          _dueDiligenceController.text = data['dueDiligence'] ?? '';
+          _beds = data['beds'] ?? 1;
+          _baths = data['baths'] ?? 1;
+          if (data['propertyTypeIndex'] != null) {
+            _propertyType = PropertyType.values[data['propertyTypeIndex']];
+          }
+          if (data['priceTerm'] != null) {
+            _priceTerm = data['priceTerm'];
+          }
+          _isPremium = data['isPremium'] ?? false;
+          if (data['amenities'] != null) {
+            _selectedAmenities.clear();
+            _selectedAmenities.addAll(List<String>.from(data['amenities']));
+          }
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _autoSaveDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draft = {
+      'title': _titleController.text,
+      'description': _descriptionController.text,
+      'price': _priceController.text,
+      'sqft': _sqftController.text,
+      'dueDiligence': _dueDiligenceController.text,
+      'beds': _beds,
+      'baths': _baths,
+      'propertyTypeIndex': PropertyType.values.indexOf(_propertyType),
+      'priceTerm': _priceTerm,
+      'isPremium': _isPremium,
+      'amenities': _selectedAmenities,
+    };
+    await prefs.setString('onboarding_form_draft', jsonEncode(draft));
+  }
 
   @override
   void dispose() {
-    _termsController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _sqftController.dispose();
+    _dueDiligenceController.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
   void _nextStep() {
-    sl<AudioManager>().playClick(context);
-    sl<AudioManager>().triggerHaptic(context);
-    if (_currentStep < 4) {
-      setState(() {
-        _currentStep++;
-      });
-    } else {
-      // Final Submission
-      sl<AudioManager>().playSuccess(context);
-      sl<AudioManager>().triggerHeavyHaptic(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Property Listed Successfully!')),
-      );
-      Navigator.pop(context);
+    if (_validateCurrentStep()) {
+      sl<AudioManager>().playClick(context);
+      _autoSaveDraft();
+      setState(() => _currentStep++);
     }
   }
 
   void _prevStep() {
     sl<AudioManager>().playClick(context);
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-    } else {
+    _autoSaveDraft();
+    setState(() => _currentStep--);
+  }
+
+  bool _validateCurrentStep() {
+    if (_currentStep == 0) {
+      if (_titleController.text.isEmpty || _priceController.text.isEmpty) {
+        UiUtils.showError(context, 'Please fill in basic details');
+        return false;
+      }
+    } else if (_currentStep == 1) {
+      if (_images.length < 3) {
+        UiUtils.showError(context, 'Please upload at least 3 photos');
+        return false;
+      }
+    } else if (_currentStep == 4) {
+      if (_propertyType.category != PropertyCategory.land &&
+          _yearBuilt == null) {
+        UiUtils.showError(context, 'Please specify the building year');
+        return false;
+      }
+    } else if (_currentStep == 5) {
+      if (!_hasSurveyPlan && !_hasCOofO && !_hasGovernorsConsent) {
+        UiUtils.showWarning(
+          context,
+          'Proceeding without major title documents may slow down verification.',
+        );
+      }
+    }
+    return true;
+  }
+
+  Future<void> _saveAsDraft() async {
+    await _autoSaveDraft();
+    sl<AudioManager>().playClick(context);
+    if (mounted) {
+      UiUtils.showSuccess(context, 'Progress saved as draft locally');
       Navigator.pop(context);
     }
   }
 
-  void _unlockPremiumPlacement() async {
-    final result = await Navigator.push(
+  Future<void> _submit() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final propertyProvider = Provider.of<PropertyProvider>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const PaymentSuccessScreen(
-          title: 'Premium Placement Unlocked',
-          description: 'Your property will now be featured with an interactive 3D walkthrough, boosting visibility by up to 5x.',
+      listen: false,
+    );
+
+    // Check if background uploads are still in progress
+    if (propertyProvider.isUploading) {
+      UiUtils.showInfo(context, 'Waiting for media to finish uploading...');
+    }
+
+    final property = Property(
+      id: '', // Will be set in provider
+      title: _titleController.text,
+      description: _descriptionController.text,
+      price: double.tryParse(_priceController.text.replaceAll(',', '')) ?? 0.0,
+      priceTerm: _priceTerm,
+      formattedPrice: '₦${_priceController.text}',
+      locationName: _locationName.isEmpty ? 'Abuja, Nigeria' : _locationName,
+      location: _selectedLocation,
+      type: _propertyType,
+      beds: _beds,
+      baths: _baths,
+      imageUrl: '', // Will be set after upload
+      imagesGallery: [],
+      has360View: false,
+      hasVideo: _video != null,
+      amenities: _selectedAmenities,
+      listerName: authProvider.profile?.fullName ?? 'Verified Agent',
+      listerType: ListerType.agent,
+      agentPhone: authProvider.profile?.email ?? '',
+      isVerified: false,
+      proximityToRoadMeters: _proximityToRoad,
+      electricitySupplyHours: _electricityHours.toDouble(),
+      hasRunningWater: _selectedAmenities.contains('Running Water'),
+      proximityToHospitalKm: _proximityToHospital,
+      yearBuilt: _yearBuilt,
+      totalSquareFootage: double.tryParse(_sqftController.text),
+      floodingHistory: _floodingHistory,
+      foundationType: _foundationType,
+      hasCertificateOfOccupancy: _hasCOofO,
+      hasGovernorsConsent: _hasGovernorsConsent,
+      hasSurveyPlan: _hasSurveyPlan,
+      hasDeedOfAssignment: _hasDeedOfAssignment,
+      hasBuildingPlanApproval: _hasBuildingPlanApproval,
+      hasSoilTestReport: _hasSoilTest,
+      hasStructuralIntegrityReport: _hasStructuralReport,
+      dueDiligenceNotes: _dueDiligenceController.text,
+      hasLawyerVerifiedTerms: _lawyerVerified,
+      verificationStatus: PropertyVerificationStatus.pendingReview,
+      isActive: true,
+      isPremium: _isPremium,
+    );
+
+    final listerId = authProvider.user?.id;
+    if (listerId == null) {
+      UiUtils.showError(context, 'You must be logged in to publish a listing');
+      return;
+    }
+
+    final success = await propertyProvider.createProperty(
+      property: property,
+      images: _images,
+      listerId: listerId,
+      video: _video,
+      planImage: _floorPlan,
+      coOfOFile: _fileCOofO,
+      governorsConsentFile: _fileGovernorsConsent,
+      surveyPlanFile: _fileSurveyPlan,
+      deedOfAssignmentFile: _fileDeedOfAssignment,
+      buildingPlanApprovalFile: _fileBuildingPlanApproval,
+      soilTestReportFile: _fileSoilTest,
+      structuralIntegrityReportFile: _fileStructuralReport,
+    );
+
+    if (mounted) {
+      if (success) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('onboarding_form_draft');
+
+        sl<AudioManager>().playSuccess(context);
+        _confettiController.play();
+        _showSuccessDialog();
+      } else {
+        UiUtils.showError(context, propertyProvider.error ?? 'Listing failed');
+      }
+    }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              LucideIcons.rocket,
+              color: AppColors.primaryLight,
+              size: 64,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Listing Published!',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Your property is now under review and will be live shortly.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  _confettiController.stop();
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryLight,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Back to Dashboard',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
-    if (result == true) {
-      setState(() {
-        _premiumUnlocked = true;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final propertyProvider = Provider.of<PropertyProvider>(context);
+    final isLoading = propertyProvider.isLoading;
+    final isUploading = propertyProvider.isUploading;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Property Listing', style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+        title: const Text(
+          'List Property',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () =>
+              _currentStep > 0 ? _prevStep() : Navigator.pop(context),
+        ),
+        actions: [
+          if (!isLoading)
+            TextButton(
+              onPressed: _saveAsDraft,
+              child: const Text(
+                'Save Draft',
+                style: TextStyle(
+                  color: AppColors.primaryLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Text(
+                'Step ${_currentStep + 1} of $_totalSteps',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      body: Stepper(
-        currentStep: _currentStep,
-        onStepContinue: _nextStep,
-        onStepCancel: _prevStep,
-        onStepTapped: (index) {
-          setState(() => _currentStep = index);
-          sl<AudioManager>().playClick(context);
-        },
-        controlsBuilder: (context, details) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 24.0),
-            child: Row(
+      body: isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Finalizing your listing...',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if (isUploading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Completing media uploads...',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            )
+          : Column(
               children: [
+                _buildProgressBar(),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: details.onStepContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      _currentStep == 4 ? 'Publish Listing' : 'Continue',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _buildCurrentStep(),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: ConfettiWidget(
+                          confettiController: _confettiController,
+                          blastDirectionality: BlastDirectionality.explosive,
+                          shouldLoop: false,
+                          colors: const [
+                            Colors.green,
+                            Colors.blue,
+                            Colors.pink,
+                            Colors.orange,
+                            Colors.purple,
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: details.onStepCancel,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Back', style: TextStyle(fontWeight: FontWeight.bold)),
+                _buildBottomNav(),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return Container(
+      height: 4,
+      width: double.infinity,
+      color: Colors.grey.withValues(alpha: 0.1),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: (_currentStep + 1) / _totalSteps,
+        child: Container(color: AppColors.primaryLight),
+      ),
+    );
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0:
+        return _buildStepBasics();
+      case 1:
+        return _buildStepMedia();
+      case 2:
+        return _buildStepLocation();
+      case 3:
+        return _buildStepDetails();
+      case 4:
+        return _buildStepTechnical();
+      case 5:
+        return _buildStepLegal();
+      case 6:
+        return _buildStepReview();
+      default:
+        return Container();
+    }
+  }
+
+  Widget _buildStepBasics() {
+    return Column(
+      key: const ValueKey(0),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Let\'s start with the basics',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Select your property type and set your pricing.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 32),
+        DropdownButtonFormField<PropertyType>(
+          initialValue: _propertyType,
+          items: PropertyType.values
+              .map(
+                (e) => DropdownMenuItem(value: e, child: Text(e.displayName)),
+              )
+              .toList(),
+          onChanged: (v) => setState(() => _propertyType = v!),
+          decoration: const InputDecoration(
+            labelText: 'Property Type',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'Property Title',
+            hintText: 'e.g. Modern 3-Bed Apartment',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Price (₦)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _priceTerm,
+                items: const [
+                  DropdownMenuItem(value: 'yr', child: Text('/yr')),
+                  DropdownMenuItem(value: 'mo', child: Text('/mo')),
+                  DropdownMenuItem(value: 'wk', child: Text('/wk')),
+                  DropdownMenuItem(value: 'day', child: Text('/day')),
+                  DropdownMenuItem(value: 'buy', child: Text('Buy')),
+                ],
+                onChanged: (v) => setState(() => _priceTerm = v!),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Premium Listing',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
+                  const Spacer(),
+                  Switch(
+                    value: _isPremium,
+                    onChanged: (v) => setState(() => _isPremium = v),
+                    activeColor: Colors.amber,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Premium listings are gated by a refundable commitment deposit. This filters out spammers and ensures you only deal with serious, verified clients.',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepMedia() {
+    return Column(
+      key: const ValueKey(1),
+      children: [
+        const Text(
+          'Bring your listing to life',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Upload high-quality media to attract more leads.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 32),
+        MediaPickerComponent(
+          images: _images,
+          video: _video,
+          onImagesChanged: (list) => setState(() => _images = list),
+          onVideoChanged: (file) => setState(() => _video = file),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepLocation() {
+    return Column(
+      key: const ValueKey(2),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Where is it based?',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 32),
+        LocationPickerComponent(
+          initialLocation: _selectedLocation,
+          onLocationChanged: (loc) => setState(() => _selectedLocation = loc),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          onChanged: (v) => setState(() => _locationName = v),
+          decoration: const InputDecoration(
+            labelText: 'Area / Neighborhood Name',
+            hintText: 'e.g. Maitama, Abuja',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepDetails() {
+    return Column(
+      key: const ValueKey(3),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Final details',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 32),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          Row(
+            children: [
+              _buildCounter(
+                _propertyType.category == PropertyCategory.commercial
+                    ? 'Rooms'
+                    : 'Bedrooms',
+                _beds,
+                (v) => setState(() => _beds = v),
+              ),
+              const SizedBox(width: 16),
+              _buildCounter(
+                _propertyType.category == PropertyCategory.commercial
+                    ? 'Restrooms'
+                    : 'Bathrooms',
+                _baths,
+                (v) => setState(() => _baths = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
+        const SizedBox(height: 32),
+        const Text('Amenities', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: _allAmenities
+              .where((a) {
+                if (_propertyType.category == PropertyCategory.land) {
+                  return [
+                    'Security Guard',
+                    'Fenced & Gated',
+                    'Tarred Road',
+                  ].contains(a);
+                }
+                return true;
+              })
+              .map((a) {
+                final isSelected = _selectedAmenities.contains(a);
+                return FilterChip(
+                  label: Text(a),
+                  selected: isSelected,
+                  onSelected: (val) {
+                    setState(() {
+                      if (val) {
+                        _selectedAmenities.add(a);
+                      } else {
+                        _selectedAmenities.remove(a);
+                      }
+                    });
+                  },
+                );
+              })
+              .toList(),
+        ),
+        const SizedBox(height: 32),
+        const Text(
+          'Proximity & Vital Signs',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        _buildSlider(
+          'Road Proximity (meters)',
+          _proximityToRoad.toDouble(),
+          0,
+          1000,
+          (v) => setState(() => _proximityToRoad = v.toInt()),
+        ),
+        if (_propertyType.category != PropertyCategory.land)
+          _buildSlider(
+            'Avg. Electricity (hrs/day)',
+            _electricityHours.toDouble(),
+            0,
+            24,
+            (v) => setState(() => _electricityHours = v.toInt()),
+          ),
+        _buildSlider(
+          'Hospital Proximity (km)',
+          _proximityToHospital,
+          0,
+          20,
+          (v) => setState(() => _proximityToHospital = v),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _descriptionController,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'General Description',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepTechnical() {
+    return Column(
+      key: const ValueKey(4),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Technical Specifications',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Provide technical details about the structure.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 32),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          DropdownButtonFormField<int>(
+            initialValue: _yearBuilt,
+            items: List.generate(50, (index) => 2026 - index)
+                .map((e) => DropdownMenuItem(value: e, child: Text('$e')))
+                .toList(),
+            onChanged: (v) => setState(() => _yearBuilt = v),
+            decoration: const InputDecoration(
+              labelText: 'Year Built',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        const SizedBox(height: 24),
+        TextField(
+          controller: _sqftController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Total Square Footage (approx)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (_propertyType.category != PropertyCategory.land) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _foundationType,
+            items: [
+              'Strip Foundation',
+              'Raft Foundation',
+              'Pile Foundation',
+              'Pad Foundation',
+            ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _foundationType = v!),
+            decoration: const InputDecoration(
+              labelText: 'Foundation Type',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        const SizedBox(height: 24),
+        SwitchListTile(
+          title: const Text('History of Flooding in Area?'),
+          subtitle: const Text('Integrity check for low-lying areas'),
+          value: _floodingHistory,
+          onChanged: (v) => setState(() => _floodingHistory = v),
+          activeThumbColor: AppColors.primaryLight,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepLegal() {
+    return Column(
+      key: const ValueKey(5),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Verification & Documents',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Check the boxes for documents you have available.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 32),
+        _buildCheckItemWithUpload(
+          'Certificate of Occupancy (C of O)',
+          _hasCOofO,
+          (bool? v) => setState(() => _hasCOofO = v ?? false),
+          _fileCOofO,
+          (file) => setState(() => _fileCOofO = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Governor\'s Consent',
+          _hasGovernorsConsent,
+          (bool? v) => setState(() => _hasGovernorsConsent = v ?? false),
+          _fileGovernorsConsent,
+          (file) => setState(() => _fileGovernorsConsent = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Survey Plan',
+          _hasSurveyPlan,
+          (bool? v) => setState(() => _hasSurveyPlan = v ?? false),
+          _fileSurveyPlan,
+          (file) => setState(() => _fileSurveyPlan = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Deed of Assignment',
+          _hasDeedOfAssignment,
+          (bool? v) => setState(() => _hasDeedOfAssignment = v ?? false),
+          _fileDeedOfAssignment,
+          (file) => setState(() => _fileDeedOfAssignment = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Building Plan Approval',
+          _hasBuildingPlanApproval,
+          (bool? v) => setState(() => _hasBuildingPlanApproval = v ?? false),
+          _fileBuildingPlanApproval,
+          (file) => setState(() => _fileBuildingPlanApproval = file),
+        ),
+        const Divider(height: 48),
+        const Text(
+          'Due Diligence',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        _buildCheckItemWithUpload(
+          'Soil Test Report Available',
+          _hasSoilTest,
+          (bool? v) => setState(() => _hasSoilTest = v ?? false),
+          _fileSoilTest,
+          (file) => setState(() => _fileSoilTest = file),
+        ),
+        _buildCheckItemWithUpload(
+          'Structural Integrity Report',
+          _hasStructuralReport,
+          (bool? v) => setState(() => _hasStructuralReport = v ?? false),
+          _fileStructuralReport,
+          (file) => setState(() => _fileStructuralReport = file),
+        ),
+        _buildCheckItem(
+          'Lawyer Verified Terms',
+          _lawyerVerified,
+          (bool? v) => setState(() => _lawyerVerified = v ?? false),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _dueDiligenceController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Internal Due Diligence Notes',
+            hintText: 'Any extra technical or legal notes...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheckItemWithUpload(
+    String label,
+    bool value,
+    Function(bool?) onChanged,
+    XFile? file,
+    Function(XFile?) onFilePicked,
+  ) {
+    return Column(
+      children: [
+        CheckboxListTile(
+          title: Text(label, style: const TextStyle(fontSize: 14)),
+          value: value,
+          onChanged: onChanged,
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          activeColor: AppColors.primaryLight,
+          dense: true,
+          secondary: value
+              ? IconButton(
+                  icon: Icon(
+                    file != null
+                        ? LucideIcons.fileCheck
+                        : LucideIcons.uploadCloud,
+                    color: file != null ? Colors.green : AppColors.primaryLight,
+                    size: 20,
+                  ),
+                  onPressed: () async {
+                    final picker = ImagePicker();
+                    final pickedFile = await picker
+                        .pickMedia(); // Allow images or video/files
+                    if (pickedFile != null) {
+                      onFilePicked(pickedFile);
+                    }
+                  },
+                  tooltip: file != null
+                      ? 'Document uploaded'
+                      : 'Upload document',
+                )
+              : null,
+        ),
+        if (value && file != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 48, bottom: 8),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.paperclip, size: 12, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    file.name,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => onFilePicked(null),
+                  child: const Icon(LucideIcons.x, size: 14, color: Colors.red),
                 ),
               ],
             ),
-          );
-        },
-        steps: [
-          Step(
-            title: const Text('Basic Details'),
-            subtitle: const Text('Type, Price, Spec'),
-            content: _buildStep1Basic(theme),
-            isActive: _currentStep >= 0,
-            state: _currentStep > 0 ? StepState.complete : StepState.indexed,
           ),
-          Step(
-            title: const Text('Geolocation'),
-            subtitle: const Text('Pin exact map location'),
-            content: _buildStep2Location(theme, isDark),
-            isActive: _currentStep >= 1,
-            state: _currentStep > 1 ? StepState.complete : StepState.indexed,
+      ],
+    );
+  }
+
+  Widget _buildCheckItem(String label, bool value, Function(bool?) onChanged) {
+    return CheckboxListTile(
+      title: Text(label, style: const TextStyle(fontSize: 14)),
+      value: value,
+      onChanged: onChanged,
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+      activeColor: AppColors.primaryLight,
+      dense: true,
+    );
+  }
+
+  Widget _buildSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    Function(double) onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            Text(
+              value.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          onChanged: onChanged,
+          activeColor: AppColors.primaryLight,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepReview() {
+    return Column(
+      key: const ValueKey(6),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildReviewRow('Title', _titleController.text),
+        _buildReviewRow('Price', '₦${_priceController.text}/$_priceTerm'),
+        _buildReviewRow('Type', _propertyType.displayName),
+        _buildReviewRow('Premium Listing', _isPremium ? 'YES' : 'NO'),
+        _buildReviewRow('Photos', '${_images.length} uploaded'),
+        _buildReviewRow(
+          'Location',
+          _locationName.isEmpty ? 'Abuja' : _locationName,
+        ),
+        const Divider(height: 32),
+        const Text(
+          'Technical Specs',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.primaryLight,
           ),
-          Step(
-            title: const Text('Media & Assets'),
-            subtitle: const Text('Photos, Videos, Floor Plans'),
-            content: _buildStep3Media(theme),
-            isActive: _currentStep >= 2,
-            state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+        ),
+        const SizedBox(height: 12),
+        _buildReviewRow('Year Built', '$_yearBuilt'),
+        _buildReviewRow(
+          'SQFT',
+          _sqftController.text.isEmpty ? 'N/A' : _sqftController.text,
+        ),
+        _buildReviewRow('Flooding History', _floodingHistory ? 'Yes' : 'No'),
+        const Divider(height: 32),
+        const Text(
+          'Legal Documents',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+            color: AppColors.primaryLight,
           ),
-          Step(
-            title: const Text('Legal & Documents'),
-            subtitle: const Text('C-of-O, Terms'),
-            content: _buildStep4Documents(theme),
-            isActive: _currentStep >= 3,
-            state: _currentStep > 3 ? StepState.complete : StepState.indexed,
+        ),
+        const SizedBox(height: 12),
+        _buildReviewRow('C of O', _hasCOofO ? 'Available' : 'Not Listed'),
+        _buildReviewRow(
+          'Survey Plan',
+          _hasSurveyPlan ? 'Available' : 'Not Listed',
+        ),
+        _buildReviewRow('Lawyer Verified', _lawyerVerified ? 'Yes' : 'No'),
+      ],
+    );
+  }
+
+  Widget _buildReviewRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          Step(
-            title: const Text('Publish & Boost'),
-            subtitle: const Text('Finish and Monitize'),
-            content: _buildStep5Publish(theme),
-            isActive: _currentStep >= 4,
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  Widget _buildStep1Basic(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _buildTypeToggle('Sale', theme),
-            const SizedBox(width: 8),
-            _buildTypeToggle('Rent', theme),
-            const SizedBox(width: 8),
-            _buildTypeToggle('Rent-To-Own', theme),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const SizedBox(height: 24),
-        const Text('Property Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<PropertyType>(
-          value: _selectedPropertyType,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.grey.withValues(alpha: 0.05),
-          ),
-          items: PropertyType.values.map((type) => DropdownMenuItem(
-            value: type,
-            child: Text(type.displayName),
-          )).toList(),
-          onChanged: (val) {
-            if (val != null) {
-              sl<AudioManager>().playClick(context);
-              setState(() => _selectedPropertyType = val);
-            }
-          },
-        ),
-        const SizedBox(height: 24),
-        TextField(
-          onChanged: (val) => setState(() => _title = val),
-          decoration: InputDecoration(
-            labelText: 'Property Title',
-            hintText: 'e.g. Luxury 4-Bed Duplex in Maitama',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: _transactionType == 'Rent' ? 'Price per Year (₦)' : 'Target Price (₦)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-           children: [
-              Expanded(
-                child: TextField(
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Bedrooms',
-                    prefixIcon: const Icon(LucideIcons.bed),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Bathrooms',
-                    prefixIcon: const Icon(LucideIcons.bath),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-           ],
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          maxLines: 3,
-          decoration: InputDecoration(
-            labelText: 'Description',
-            hintText: 'Describe the property features and state...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTypeToggle(String type, ThemeData theme) {
-    final isSelected = _transactionType == type;
+  Widget _buildCounter(String label, int value, Function(int) onChanged) {
     return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          sl<AudioManager>().playClick(context);
-          setState(() => _transactionType = type);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent,
-            border: Border.all(color: isSelected ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            type,
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? theme.colorScheme.primary : Colors.grey[600],
-              fontSize: 12,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
-          ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(LucideIcons.minusCircle),
+                  onPressed: value > 0 ? () => onChanged(value - 1) : null,
+                ),
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.plusCircle),
+                  onPressed: () => onChanged(value + 1),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStep2Location(ThemeData theme, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        const Text('Drag the map to pin the exact geolocation for accurate search indexing.', style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 16),
-        GestureDetector(
-          onPanUpdate: (details) {
-            setState(() {
-              _isDraggingMap = true;
-              _lat -= details.delta.dy * 0.0001; // Fake logic
-              _lng += details.delta.dx * 0.0001; // Fake logic
-            });
-          },
-          onPanEnd: (details) {
-            setState(() {
-              _isDraggingMap = false;
-            });
-            sl<AudioManager>().triggerHaptic(context);
-          },
-          child: Container(
-            height: 250,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!),
-              image: const DecorationImage(
-                image: NetworkImage('https://images.unsplash.com/photo-1524661135-423995f22d0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'), // Mock Map satellite view
-                fit: BoxFit.cover,
-              )
-            ),
-            child: Center(
-              child: AnimatedContainer(
-                 duration: const Duration(milliseconds: 150),
-                 transform: Matrix4.translationValues(0, _isDraggingMap ? -10 : 0, 0),
-                 child: Icon(LucideIcons.mapPin, color: theme.colorScheme.primary, size: 48),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Row(
-           children: [
-              Expanded(
-                child: TextField(
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Latitude',
-                    hintText: _lat.toStringAsFixed(6),
-                    prefixIcon: const Icon(LucideIcons.compass),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Longitude',
-                    hintText: _lng.toStringAsFixed(6),
-                    prefixIcon: const Icon(LucideIcons.compass),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep3Media(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        _MediaUploaderCard(
-          title: 'Floor Plan (PDF/Image)',
-          icon: LucideIcons.layers,
-          isUploaded: _floorPlanUploaded,
-          onUpload: () {
-            _simulateUpload(() => setState(() => _floorPlanUploaded = true));
-          },
-        ),
-        const SizedBox(height: 12),
-        _MediaUploaderCard(
-          title: 'Video Walkthrough (.mp4)',
-          icon: LucideIcons.video,
-          isUploaded: _videoUploaded,
-          onUpload: () {
-            _simulateUpload(() => setState(() => _videoUploaded = true));
-          },
-        ),
-        const SizedBox(height: 16),
-        const Text('OR PROVIDE EXTERNAL LINKS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
-        const SizedBox(height: 12),
-        TextField(
-          decoration: InputDecoration(
-            labelText: 'External Video URL (YouTube/Vimeo)',
-            prefixIcon: const Icon(LucideIcons.link),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          decoration: InputDecoration(
-            labelText: '3D Walkthrough URL (Matterport/Panorama)',
-            prefixIcon: const Icon(LucideIcons.map),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(LucideIcons.scanLine, color: Colors.blue, size: 32),
-              ),
-              const SizedBox(height: 12),
-              const Text('AI Virtual Walkthrough', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Use your phone camera to scan rooms and automatically generate a 3D navigable tour.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
-              const SizedBox(height: 16),
-              Text('$_aiNodesMapped Nodes Mapped', style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AiCameraMappingScreen()));
-                  if (result == true) {
-                    setState(() => _aiNodesMapped++);
-                  }
-                },
-                icon: const Icon(LucideIcons.camera),
-                label: const Text('Map Interior Now', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep4Documents(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        const Text('Upload required legal documents and define specific terms to fast-track verification.', style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 16),
-        _MediaUploaderCard(
-          title: 'Certificate of Occupancy / Title',
-          icon: LucideIcons.fileText,
-          isUploaded: _titleUploaded,
-          onUpload: () {
-            _simulateUpload(() => setState(() => _titleUploaded = true));
-          },
-        ),
-        const SizedBox(height: 12),
-        _MediaUploaderCard(
-          title: 'Survey Plan (Verified)',
-          icon: LucideIcons.map,
-          isUploaded: _surveyPlanUploaded,
-          onUpload: () {
-            _simulateUpload(() => setState(() => _surveyPlanUploaded = true));
-          },
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Icon(LucideIcons.gavel, color: theme.colorScheme.primary, size: 18),
-            const SizedBox(width: 12),
-            const Text('Lawyer\'s Terms & Conditions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _termsController,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Enter specific legal terms or conditions provided by your attorney (e.g. payout structure, agency fees, possession clauses)...',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-            filled: true,
-            fillColor: theme.colorScheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1))),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
-          ),
-          child: Row(
-            children: [
-              const Icon(LucideIcons.shieldCheck, color: Colors.blue, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Auto-Verification Active', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('Our legal AI checks uploaded titles against government registries.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        SwitchListTile(
-          title: const Text('Require Identity Verification'),
-          subtitle: const Text('Only verified users can book inspections.'),
-          value: true,
-          onChanged: (val) {},
-          activeThumbColor: theme.colorScheme.primary,
-          contentPadding: EdgeInsets.zero,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep5Publish(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFF3B2DB0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              const Icon(LucideIcons.rocket, color: Colors.white, size: 48),
-              const SizedBox(height: 16),
-              const Text('Boost Your Visibility', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Properties with Premium 3D Placement get 5x more serious inquiries.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 24),
-              _premiumUnlocked 
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.greenAccent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(LucideIcons.checkCircle2, color: Colors.greenAccent),
-                          SizedBox(width: 8),
-                          Text('Premium Placed', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    )
-                  : ElevatedButton.icon(
-                      onPressed: _unlockPremiumPlacement,
-                      icon: const Icon(LucideIcons.zap),
-                      label: const Text('Unlock Premium for ₦10,000', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF6C63FF),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      ),
-                    ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _simulateUpload(VoidCallback onComplete) {
-    sl<AudioManager>().playClick(context);
-    final navigator = Navigator.of(context);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-         Future.delayed(const Duration(seconds: 2), () {
-            navigator.pop();
-            if (!mounted) return;
-            sl<AudioManager>().playSuccess(context);
-            onComplete();
-         });
-         return const AlertDialog(
-           backgroundColor: Colors.transparent,
-           elevation: 0,
-           content: Center(
-             child: CircularProgressIndicator(color: Colors.white),
-           ),
-         );
-      }
-    );
-  }
-}
-
-class _MediaUploaderCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isUploaded;
-  final VoidCallback onUpload;
-
-  const _MediaUploaderCard({
-    required this.title,
-    required this.icon,
-    required this.isUploaded,
-    required this.onUpload,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
+  Widget _buildBottomNav() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!),
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-               color: isUploaded ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
-               borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(isUploaded ? LucideIcons.checkCircle : icon, color: isUploaded ? Colors.green : Colors.grey, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(fontWeight: FontWeight.w600, color: isUploaded ? (isDark ? Colors.white : Colors.black) : Colors.grey),
-            ),
-          ),
-          isUploaded 
-            ? IconButton(icon: const Icon(LucideIcons.x, color: Colors.grey), onPressed: () {})
-            : ElevatedButton(
-                onPressed: onUpload,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  foregroundColor: theme.colorScheme.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+          if (_currentStep > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _prevStep,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Upload', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Back'),
               ),
+            ),
+          if (_currentStep > 0) const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: _currentStep == _totalSteps - 1 ? _submit : _nextStep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryLight,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: Text(
+                _currentStep == _totalSteps - 1
+                    ? 'Publish Listing'
+                    : 'Continue',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

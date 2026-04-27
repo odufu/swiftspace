@@ -13,7 +13,7 @@ import 'package:swiftspace/features/property/domain/entities/property.dart';
 import 'package:swiftspace/features/explore/presentation/widgets/custom_marker.dart';
 import 'package:swiftspace/features/property/presentation/widgets/property_snippet.dart';
 import 'package:swiftspace/features/property/presentation/pages/property_details_screen.dart';
-import 'package:swiftspace/features/explore/presentation/pages/advanced_explore_screen.dart';
+import 'package:swiftspace/features/explore/presentation/pages/grid_explore_screen.dart';
 import 'package:swiftspace/features/auth/presentation/state/user_preferences_provider.dart';
 import 'package:swiftspace/core/services/ai_recommendation_service.dart';
 import 'package:swiftspace/features/negotiation/presentation/widgets/best_offer_card.dart';
@@ -21,15 +21,22 @@ import 'package:swiftspace/core/utils/responsive.dart';
 import 'package:swiftspace/features/property/presentation/state/property_provider.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
 import 'package:swiftspace/core/services/map_service.dart';
+import 'package:swiftspace/features/chat/domain/entities/notification.dart';
+import 'package:swiftspace/features/chat/presentation/state/chat_provider.dart';
+import 'package:swiftspace/features/chat/presentation/state/notification_provider.dart';
+import 'package:swiftspace/core/presentation/widgets/common/badge_icon.dart';
+import 'package:swiftspace/shared/widgets/notification_sheet.dart';
 
-class ExploreScreen extends StatefulWidget {
-  const ExploreScreen({super.key});
+class MapExploreScreen extends StatefulWidget {
+  final Property? initialProperty;
+  final List<Property>? curatedProperties;
+  const MapExploreScreen({super.key, this.initialProperty, this.curatedProperties});
 
   @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
+  State<MapExploreScreen> createState() => _MapExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen>
+class _MapExploreScreenState extends State<MapExploreScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
@@ -49,7 +56,7 @@ class _ExploreScreenState extends State<ExploreScreen>
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
-  bool _isSatelliteMode = false;
+  bool _isSatelliteMode = true;
   final Set<String> _selectedTerms = {'mo', 'yr', 'buy'};
   RangeValues _priceRange = const RangeValues(10000, 5000000);
 
@@ -69,9 +76,27 @@ class _ExploreScreenState extends State<ExploreScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAreaOfInterestPrompt();
-    });
+
+    if (widget.initialProperty != null) {
+      _center = widget.initialProperty!.location;
+      _selectedProperty = widget.initialProperty;
+      _searchPin = widget.initialProperty!.location;
+      // Animate after frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _animatedMapMove(_center, 15.0);
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final loc = await _fetchCurrentLocation();
+        if (loc != null && mounted) {
+          setState(() {
+            _userLocation = loc;
+            _center = loc;
+            _animatedMapMove(loc, 13.0);
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -127,7 +152,12 @@ class _ExploreScreenState extends State<ExploreScreen>
 
     if (permission == LocationPermission.deniedForever) return null;
 
-    final position = await Geolocator.getCurrentPosition();
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
+    );
     return LatLng(position.latitude, position.longitude);
   }
 
@@ -212,7 +242,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     setState(() {
       _searchQuery = query.toLowerCase();
     });
-    
+
     // Animate map to the first property found in search results
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final results = _filteredProperties;
@@ -272,10 +302,8 @@ class _ExploreScreenState extends State<ExploreScreen>
 
   // --- Filter Logic ---
   List<Property> get _filteredProperties {
-    final allProperties = Provider.of<PropertyProvider>(
-      context,
-      listen: false,
-    ).properties;
+    if (widget.curatedProperties != null) return widget.curatedProperties!;
+    final allProperties = Provider.of<PropertyProvider>(context).properties;
 
     final list = allProperties.where((p) {
       // ONLY SHOW ACTIVE PROPERTIES FOR CLIENT DISCOVERY
@@ -551,6 +579,25 @@ class _ExploreScreenState extends State<ExploreScreen>
                                 ),
                                 onPressed: () {
                                   Navigator.pop(context);
+
+                                  final noteProvider =
+                                      Provider.of<NotificationProvider>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  noteProvider.addNotification(
+                                    NotificationModel(
+                                      id: DateTime.now().millisecondsSinceEpoch
+                                          .toString(),
+                                      title: 'Price Alert Active',
+                                      message:
+                                          'We will notify you immediately when a property matching these filters is listed.',
+                                      type: NotificationType.match,
+                                      timestamp: DateTime.now(),
+                                      isRead: false,
+                                    ),
+                                  );
+
                                   ScaffoldMessenger.of(
                                     this.context,
                                   ).showSnackBar(
@@ -719,7 +766,10 @@ class _ExploreScreenState extends State<ExploreScreen>
                                 if (val) {
                                   final results = _filteredProperties;
                                   if (results.isNotEmpty) {
-                                    _animatedMapMove(results.first.location, 14.5);
+                                    _animatedMapMove(
+                                      results.first.location,
+                                      16.0,
+                                    );
                                   }
                                 }
                               });
@@ -934,7 +984,10 @@ class _ExploreScreenState extends State<ExploreScreen>
                                 Navigator.pop(context);
                                 final results = _filteredProperties;
                                 if (results.isNotEmpty) {
-                                  _animatedMapMove(results.first.location, 13.0);
+                                  _animatedMapMove(
+                                    results.first.location,
+                                    13.0,
+                                  );
                                 }
                               },
                               style: ElevatedButton.styleFrom(
@@ -1166,10 +1219,10 @@ class _ExploreScreenState extends State<ExploreScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final propId = prefs.mapFocusPropertyId;
         if (propId != null) {
-          final property = Provider.of<PropertyProvider>(context, listen: false)
-              .properties
-              .where((p) => p.id == propId)
-              .firstOrNull;
+          final property = Provider.of<PropertyProvider>(
+            context,
+            listen: false,
+          ).properties.where((p) => p.id == propId).firstOrNull;
           if (property != null) {
             setState(() {
               _selectedProperty = property;
@@ -1372,6 +1425,21 @@ class _ExploreScreenState extends State<ExploreScreen>
               children: [
                 Row(
                   children: [
+                    if (Navigator.canPop(context))
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: CircleAvatar(
+                          backgroundColor: theme.colorScheme.surface,
+                          radius: 25,
+                          child: IconButton(
+                            icon: Icon(
+                              LucideIcons.arrowLeft,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                      ),
                     Expanded(
                       child: Container(
                         height: 50,
@@ -1412,12 +1480,12 @@ class _ExploreScreenState extends State<ExploreScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _showFilterModal,
                       child: Container(
                         height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(25),
@@ -1436,17 +1504,43 @@ class _ExploreScreenState extends State<ExploreScreen>
                               color: theme.colorScheme.primary,
                               size: 18,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Filters',
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface,
-                                fontWeight: FontWeight.w600,
+                            if (!Responsive.isMobile(context)) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                'Filters',
+                                style: TextStyle(
+                                  color: theme.colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Consumer2<ChatProvider, NotificationProvider>(
+                      builder: (context, chat, note, child) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            BadgeIcon(
+                              icon: LucideIcons.messageSquare,
+                              count: chat.totalUnreadCount,
+                              onPressed: () =>
+                                  Provider.of<UserPreferencesProvider>(
+                                    context,
+                                    listen: false,
+                                  ).setTabIndex(2),
+                            ),
+                            BadgeIcon(
+                              icon: LucideIcons.bell,
+                              count: note.unreadCount,
+                              onPressed: () => NotificationSheet.show(context),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1650,10 +1744,11 @@ class _ExploreScreenState extends State<ExploreScreen>
   Widget _buildDraggableSheet(ThemeData theme, bool isDark) {
     return DraggableScrollableSheet(
       controller: _sheetController,
-      initialChildSize: 0.35,
+      initialChildSize: 0.45,
       minChildSize: 0.15,
       maxChildSize: 0.95,
       snap: true,
+      snapSizes: const [0.15, 0.45, 0.95],
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -1751,7 +1846,10 @@ class _ExploreScreenState extends State<ExploreScreen>
 
     return FlutterMap(
       mapController: _mapController,
-      options: MapOptions(initialCenter: _center, initialZoom: 13.0),
+      options: MapOptions(
+        initialCenter: _center,
+        initialZoom: widget.initialProperty != null ? 15.0 : 6.0,
+      ),
       children: [
         sl<IMapService>().getTileLayer(
           isDark: isDark,
@@ -1769,28 +1867,47 @@ class _ExploreScreenState extends State<ExploreScreen>
       child: Column(
         children: [
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(LucideIcons.compass, size: 18),
-              label: const Text('Explore Advanced Grid Filters'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Nearby Properties',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AdvancedExploreScreen(),
+              TextButton.icon(
+                icon: const Icon(LucideIcons.layoutGrid, size: 14),
+                label: const Text(
+                  'VIEW ALL',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
                   ),
-                );
-              },
-            ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const GridExploreScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           if (_filteredProperties.isEmpty)

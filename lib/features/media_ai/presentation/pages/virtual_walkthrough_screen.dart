@@ -3,81 +3,93 @@ import 'package:panorama_viewer/panorama_viewer.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/core/services/audio_manager.dart';
 import 'package:swiftspace/core/di/injection_container.dart';
-
-class WalkthroughNode {
-  final String id;
-  final String name;
-  final String panoramaUrl;
-  final Map<String, String> availableMoves; // 'forward': 'node2', 'left': 'node3'
-
-  WalkthroughNode({
-    required this.id,
-    required this.name,
-    required this.panoramaUrl,
-    required this.availableMoves,
-  });
-}
+import 'package:swiftspace/features/property/domain/entities/property.dart';
+import 'package:swiftspace/features/property/domain/entities/virtual_tour.dart';
 
 class VirtualWalkthroughScreen extends StatefulWidget {
-  const VirtualWalkthroughScreen({super.key});
+  final Property? property;
+  final VirtualTour? customTour;
+
+  const VirtualWalkthroughScreen({
+    super.key,
+    this.property,
+    this.customTour,
+  });
 
   @override
   State<VirtualWalkthroughScreen> createState() => _VirtualWalkthroughScreenState();
 }
 
 class _VirtualWalkthroughScreenState extends State<VirtualWalkthroughScreen> {
-  // Sample prototype nodes
-  late List<WalkthroughNode> _nodes;
-  late WalkthroughNode _currentNode;
+  late VirtualTour _tour;
+  String? _currentNodeId;
+  bool _isTransitioning = false;
 
   @override
   void initState() {
     super.initState();
-    _nodes = [
-      WalkthroughNode(
-        id: 'entrance',
-        name: 'Entrance Hall',
-        panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama.jpg',
-        availableMoves: {'forward': 'living_room'},
-      ),
-      WalkthroughNode(
-        id: 'living_room',
-        name: 'Living Room',
-        panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama2.jpg',
-        availableMoves: {'back': 'entrance', 'left': 'kitchen', 'forward': 'master_bedroom'},
-      ),
-      WalkthroughNode(
-        id: 'kitchen',
-        name: 'Kitchen & Dining',
-        panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama.jpg',
-        availableMoves: {'right': 'living_room'},
-      ),
-      WalkthroughNode(
-        id: 'master_bedroom',
-        name: 'Master Bedroom',
-        panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama2.jpg',
-        availableMoves: {'back': 'living_room'},
-      ),
-    ];
-    _currentNode = _nodes.first;
+    _initializeTour();
   }
 
-  void _moveToNode(String direction) {
-    if (_currentNode.availableMoves.containsKey(direction)) {
-      final String nextNodeId = _currentNode.availableMoves[direction]!;
-      final nextNode = _nodes.firstWhere((n) => n.id == nextNodeId);
-
-      sl<AudioManager>().playSwipe(context);
-      sl<AudioManager>().triggerHaptic(context);
-
-      setState(() {
-        _currentNode = nextNode;
-      });
+  void _initializeTour() {
+    if (widget.customTour != null) {
+      _tour = widget.customTour!;
+    } else if (widget.property?.virtualTour != null) {
+      _tour = widget.property!.virtualTour!;
+    } else {
+      // Fallback/Demo data if no tour exists
+      _tour = _getDemoTour();
     }
+    _currentNodeId = _tour.startNodeId;
+  }
+
+  VirtualTour _getDemoTour() {
+    return VirtualTour(
+      nodes: {
+        'entrance': TourNode(
+          id: 'entrance',
+          name: 'Main Entrance',
+          panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama.jpg',
+          hotspots: [
+            TourHotspot(latitude: 0, longitude: 0, targetNodeId: 'living', label: 'Enter Hall'),
+          ],
+        ),
+        'living': TourNode(
+          id: 'living',
+          name: 'Grand Living Room',
+          panoramaUrl: 'https://raw.githubusercontent.com/mchome/panorama_viewer/master/example/assets/panorama2.jpg',
+          hotspots: [
+            TourHotspot(latitude: 0, longitude: 180, targetNodeId: 'entrance', label: 'Back to Door'),
+          ],
+        ),
+      },
+      startNodeId: 'entrance',
+    );
+  }
+
+  void _moveToNode(String nodeId) {
+    if (_isTransitioning) return;
+    
+    setState(() => _isTransitioning = true);
+    
+    sl<AudioManager>().playSwipe(context);
+    sl<AudioManager>().triggerHaptic(context);
+
+    // Short delay for transition feel
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _currentNodeId = nodeId;
+          _isTransitioning = false;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentNode = _tour.nodes[_currentNodeId];
+
     return Scaffold(
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
@@ -85,8 +97,8 @@ class _VirtualWalkthroughScreenState extends State<VirtualWalkthroughScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Virtual Walkthrough', style: TextStyle(color: Colors.white, fontSize: 14)),
-            Text(_currentNode.name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('3D Virtual Walkthrough', style: TextStyle(color: Colors.white, fontSize: 12)),
+            Text(currentNode?.name ?? 'Loading...', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
         backgroundColor: Colors.black.withValues(alpha: 0.5),
@@ -95,93 +107,89 @@ class _VirtualWalkthroughScreenState extends State<VirtualWalkthroughScreen> {
       ),
       body: Stack(
         children: [
-          // The actual panorama
-          // Using Key ensures the widget completely rebuilds the view for the new URL
-          PanoramaViewer(
-            key: ValueKey(_currentNode.id),
-            animSpeed: 0.1,
-            sensorControl: SensorControl.orientation,
-            child: Image.network(_currentNode.panoramaUrl),
-          ),
-
-          // Custom Navigation HUD Overlay
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(40),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Forward Arrow
-                    _buildNavButton(LucideIcons.arrowUp, 'forward'),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Left Arrow
-                        _buildNavButton(LucideIcons.arrowLeft, 'left'),
-                        const SizedBox(width: 48), // Space for center
-                        // Right Arrow
-                        _buildNavButton(LucideIcons.arrowRight, 'right'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Back Arrow
-                    _buildNavButton(LucideIcons.arrowDown, 'back'),
-                  ],
-                ),
+          if (currentNode != null)
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 500),
+              opacity: _isTransitioning ? 0.0 : 1.0,
+              child: PanoramaViewer(
+                key: ValueKey(currentNode.id),
+                animSpeed: 0.1,
+                sensorControl: SensorControl.orientation,
+                hotspots: currentNode.hotspots.map((h) {
+                  return Hotspot(
+                    latitude: h.latitude,
+                    longitude: h.longitude,
+                    width: 60,
+                    height: 60,
+                    widget: _buildHotspotMarker(h),
+                  );
+                }).toList(),
+                child: Image.network(currentNode.panoramaUrl),
               ),
             ),
-          ),
-          
-          // Map Icon indicator top right
+
+          if (_isTransitioning)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+            
+          // HUD indicators
           Positioned(
-             top: 100,
-             right: 16,
-             child: Container(
-               padding: const EdgeInsets.all(12),
-               decoration: BoxDecoration(
-                 color: const Color(0xFF1EB476).withValues(alpha: 0.8),
-                 shape: BoxShape.circle,
-               ),
-               child: const Icon(LucideIcons.map, color: Colors.white, size: 20),
-             ),
+            bottom: 30,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                   const Icon(LucideIcons.compass, color: Colors.white, size: 16),
+                   const SizedBox(width: 8),
+                   Text(
+                     'Drag to look around',
+                     style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                   ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavButton(IconData icon, String direction) {
-    final bool isAvailable = _currentNode.availableMoves.containsKey(direction);
+  Widget _buildHotspotMarker(TourHotspot hotspot) {
     return GestureDetector(
-      onTap: isAvailable ? () => _moveToNode(direction) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isAvailable ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isAvailable ? Colors.white : Colors.white.withValues(alpha: 0.1),
-            width: isAvailable ? 2 : 1,
+      onTap: () => _moveToNode(hotspot.targetNodeId),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                 BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+              ],
+            ),
+            child: const Icon(LucideIcons.chevronUp, color: Colors.white, size: 24),
           ),
-        ),
-        child: Icon(
-          icon,
-          color: isAvailable ? Colors.white : Colors.white.withValues(alpha: 0.2),
-          size: 24,
-        ),
+          const SizedBox(height: 4),
+          Container(
+             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+             decoration: BoxDecoration(
+               color: Colors.black.withValues(alpha: 0.6),
+               borderRadius: BorderRadius.circular(4),
+             ),
+             child: Text(
+               hotspot.label,
+               style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+             ),
+          ),
+        ],
       ),
     );
   }

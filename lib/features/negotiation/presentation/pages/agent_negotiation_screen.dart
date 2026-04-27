@@ -542,7 +542,7 @@ class _AgentNegotiationScreenState extends State<AgentNegotiationScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Client will now proceed to escrow.',
+              'Client will now proceed to finalize the deal.',
               style: TextStyle(color: Colors.grey),
             ),
           ],

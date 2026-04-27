@@ -1,43 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:swiftspace/features/booking/domain/entities/booking.dart';
 import 'package:swiftspace/features/property/domain/entities/property.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 
 class BookingProvider with ChangeNotifier {
   final List<InspectionBooking> _bookings = [];
 
   List<InspectionBooking> get bookings => [..._bookings];
 
-  /// Adds a new booking AND creates the linked EscrowTransaction for the
-  /// inspection commitment fee (Step 2 of the Inspection Circle).
-  void addBooking(InspectionBooking booking, {double feeAmount = 5000}) {
-    // Create and hold the escrow entry for the inspection fee
-    final escrowId = 'INSP-${booking.id}';
-    final escrowTx = EscrowTransaction(
-      id: escrowId,
-      propertyTitle: booking.property.title,
-      location: booking.property.locationName,
-      propertyImage: booking.property.imageUrl,
-      clientName: 'Client',
-      agentName: booking.property.listerName,
-      amount: feeAmount,
-      dealType: 'Inspection Fee',
-      state: EscrowState.held, // Funds secured immediately after payment
-      createdAt: DateTime.now(),
-      invoices: [
-        AccountInvoice(
-          id: 'INV-${DateTime.now().millisecondsSinceEpoch}',
-          transactionId: escrowId,
-          amount: feeAmount,
-          date: DateTime.now(),
-          type: 'Receipt',
-        ),
-      ],
-    );
-    MockEscrowStore().addTransaction(escrowTx);
-
-    // Link the booking to the escrow transaction
-    _bookings.insert(0, booking.copyWith(escrowTransactionId: escrowId));
+  void addBooking(InspectionBooking booking) {
+    _bookings.insert(0, booking);
     notifyListeners();
   }
 
@@ -45,12 +16,6 @@ class BookingProvider with ChangeNotifier {
     final index = _bookings.indexWhere((b) => b.id == id);
     if (index != -1) {
       _bookings[index] = _bookings[index].copyWith(status: status);
-
-      // Step 7 edge case: if declined or cancelled → refund the escrow fee
-      if (status == BookingStatus.declined || status == BookingStatus.cancelled) {
-        MockEscrowStore().settleInspectionFee(id, refund: true);
-      }
-
       notifyListeners();
     }
   }
@@ -80,8 +45,7 @@ class BookingProvider with ChangeNotifier {
     }
   }
 
-  /// Step 6 + 7: Client approves → booking becomes completed AND
-  /// the inspection fee escrow is released to the agent.
+  /// Step 6 + 7: Client approves → booking becomes completed.
   void rateAgent(String id, int rating, String review) {
     final index = _bookings.indexWhere((b) => b.id == id);
     if (index != -1) {
@@ -91,15 +55,11 @@ class BookingProvider with ChangeNotifier {
         clientReview: review,
         isClientApproved: true,
       );
-
-      // Step 7 — Release the inspection fee to the agent
-      MockEscrowStore().settleInspectionFee(id, refund: false);
-
       notifyListeners();
     }
   }
 
-  /// Allows the client to cancel their own booking (releases escrow refund).
+  /// Allows the client to cancel their own booking.
   void cancelBooking(String id) {
     updateBookingStatus(id, BookingStatus.cancelled);
   }

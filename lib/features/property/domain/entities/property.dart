@@ -1,4 +1,5 @@
 import 'package:latlong2/latlong.dart';
+import 'virtual_tour.dart';
 
 enum PropertyType { shops, officeSpace, flatsAndApartments, lands, semiDetachedBungalows, semiDetachedDuplex, coWorkingSpace, detachedBungalows, warehouse, shopInAMall, detachedDuplex, terracedBungalows, commercialProperties, terracedDuplex, house }
 
@@ -134,16 +135,46 @@ class Property {
   final int viewsCount;
   final int favoritesCount;
   final int videoViewsCount;
+  final String? listerId; // Links to auth.users.id
+  final bool isPremium; // Indicates if this is a premium listing locked behind a paywall
+
+  // Document URLs for serious interests
+  final String? coOfOUrl;
+  final String? governorsConsentUrl;
+  final String? surveyPlanUrl;
+  final String? deedOfAssignmentUrl;
+  final String? buildingPlanApprovalUrl;
+  final String? soilTestReportUrl;
+  final String? structuralIntegrityReportUrl;
 
   String get agentName => listerName;
   final int proximityToRoadMeters;
   final double electricitySupplyHours;
   final bool hasRunningWater;
   final double proximityToHospitalKm;
+  
+  // Technical & Detail fields
+  final int? yearBuilt;
+  final double? totalSquareFootage;
+  final bool floodingHistory;
+  final String? foundationType;
+
+  // Legal & Documents Checklist
   final bool hasCertificateOfOccupancy;
+  final bool hasGovernorsConsent;
+  final bool hasSurveyPlan;
+  final bool hasDeedOfAssignment;
+  final bool hasBuildingPlanApproval;
+  
+  // Due Diligence
+  final bool hasSoilTestReport;
+  final bool hasStructuralIntegrityReport;
+  final String? dueDiligenceNotes;
   final bool hasLawyerVerifiedTerms;
+  
   final String? videoUrl;
   final String? panoramaUrl;
+  final VirtualTour? virtualTour;
   final List<LegalDocument> legalDocuments;
   final String? termsAndConditions;
   final PropertyVerificationStatus verificationStatus;
@@ -153,6 +184,9 @@ class Property {
   final bool appliesAgencyFee;
   final bool appliesLegalFee;
   final bool appliesServiceFee;
+
+  // Geo-fencing for lands
+  final List<LatLng>? geoFencePoints;
 
   Property({
     required this.id,
@@ -184,13 +218,25 @@ class Property {
     required this.proximityToHospitalKm,
     this.isActive = true,
     this.isTest = false,
+    this.yearBuilt,
+    this.totalSquareFootage,
+    this.floodingHistory = false,
+    this.foundationType,
     this.hasCertificateOfOccupancy = false,
+    this.hasGovernorsConsent = false,
+    this.hasSurveyPlan = false,
+    this.hasDeedOfAssignment = false,
+    this.hasBuildingPlanApproval = false,
+    this.hasSoilTestReport = false,
+    this.hasStructuralIntegrityReport = false,
+    this.dueDiligenceNotes,
     this.hasLawyerVerifiedTerms = false,
     this.videoUrl,
     this.panoramaUrl,
     this.viewsCount = 0,
     this.favoritesCount = 0,
     this.videoViewsCount = 0,
+    this.virtualTour,
     this.legalDocuments = const [],
     this.termsAndConditions,
     this.verificationStatus = PropertyVerificationStatus.unverified,
@@ -198,6 +244,16 @@ class Property {
     this.appliesAgencyFee = true,
     this.appliesLegalFee = true,
     this.appliesServiceFee = true,
+    this.geoFencePoints,
+    this.listerId,
+    this.isPremium = false,
+    this.coOfOUrl,
+    this.governorsConsentUrl,
+    this.surveyPlanUrl,
+    this.deedOfAssignmentUrl,
+    this.buildingPlanApprovalUrl,
+    this.soilTestReportUrl,
+    this.structuralIntegrityReportUrl,
   });
 
   Property copyWith({
@@ -233,9 +289,20 @@ class Property {
     double? electricitySupplyHours,
     bool? hasRunningWater,
     double? proximityToHospitalKm,
+    int? yearBuilt,
+    double? totalSquareFootage,
+    bool? floodingHistory,
+    String? foundationType,
+    bool? hasCertificateOfOccupancy,
+    bool? hasGovernorsConsent,
+    bool? hasSurveyPlan,
+    bool? hasDeedOfAssignment,
+    bool? hasBuildingPlanApproval,
+    bool? hasSoilTestReport,
+    bool? hasStructuralIntegrityReport,
+    String? dueDiligenceNotes,
     String? videoUrl,
     String? panoramaUrl,
-    bool? hasCertificateOfOccupancy,
     bool? hasLawyerVerifiedTerms,
     List<LegalDocument>? legalDocuments,
     String? termsAndConditions,
@@ -244,6 +311,17 @@ class Property {
     bool? appliesAgencyFee,
     bool? appliesLegalFee,
     bool? appliesServiceFee,
+    VirtualTour? virtualTour,
+    List<LatLng>? geoFencePoints,
+    String? listerId,
+    bool? isPremium,
+    String? coOfOUrl,
+    String? governorsConsentUrl,
+    String? surveyPlanUrl,
+    String? deedOfAssignmentUrl,
+    String? buildingPlanApprovalUrl,
+    String? soilTestReportUrl,
+    String? structuralIntegrityReportUrl,
   }) {
     return Property(
       id: id ?? this.id,
@@ -278,9 +356,20 @@ class Property {
       electricitySupplyHours: electricitySupplyHours ?? this.electricitySupplyHours,
       hasRunningWater: hasRunningWater ?? this.hasRunningWater,
       proximityToHospitalKm: proximityToHospitalKm ?? this.proximityToHospitalKm,
+      yearBuilt: yearBuilt ?? this.yearBuilt,
+      totalSquareFootage: totalSquareFootage ?? this.totalSquareFootage,
+      floodingHistory: floodingHistory ?? this.floodingHistory,
+      foundationType: foundationType ?? this.foundationType,
+      hasCertificateOfOccupancy: hasCertificateOfOccupancy ?? this.hasCertificateOfOccupancy,
+      hasGovernorsConsent: hasGovernorsConsent ?? this.hasGovernorsConsent,
+      hasSurveyPlan: hasSurveyPlan ?? this.hasSurveyPlan,
+      hasDeedOfAssignment: hasDeedOfAssignment ?? this.hasDeedOfAssignment,
+      hasBuildingPlanApproval: hasBuildingPlanApproval ?? this.hasBuildingPlanApproval,
+      hasSoilTestReport: hasSoilTestReport ?? this.hasSoilTestReport,
+      hasStructuralIntegrityReport: hasStructuralIntegrityReport ?? this.hasStructuralIntegrityReport,
+      dueDiligenceNotes: dueDiligenceNotes ?? this.dueDiligenceNotes,
       videoUrl: videoUrl ?? this.videoUrl,
       panoramaUrl: panoramaUrl ?? this.panoramaUrl,
-      hasCertificateOfOccupancy: hasCertificateOfOccupancy ?? this.hasCertificateOfOccupancy,
       hasLawyerVerifiedTerms: hasLawyerVerifiedTerms ?? this.hasLawyerVerifiedTerms,
       legalDocuments: legalDocuments ?? this.legalDocuments,
       termsAndConditions: termsAndConditions ?? this.termsAndConditions,
@@ -289,17 +378,35 @@ class Property {
       appliesAgencyFee: appliesAgencyFee ?? this.appliesAgencyFee,
       appliesLegalFee: appliesLegalFee ?? this.appliesLegalFee,
       appliesServiceFee: appliesServiceFee ?? this.appliesServiceFee,
+      virtualTour: virtualTour ?? this.virtualTour,
+      geoFencePoints: geoFencePoints ?? this.geoFencePoints,
+      listerId: listerId ?? this.listerId,
+      isPremium: isPremium ?? this.isPremium,
+      coOfOUrl: coOfOUrl ?? this.coOfOUrl,
+      governorsConsentUrl: governorsConsentUrl ?? this.governorsConsentUrl,
+      surveyPlanUrl: surveyPlanUrl ?? this.surveyPlanUrl,
+      deedOfAssignmentUrl: deedOfAssignmentUrl ?? this.deedOfAssignmentUrl,
+      buildingPlanApprovalUrl: buildingPlanApprovalUrl ?? this.buildingPlanApprovalUrl,
+      soilTestReportUrl: soilTestReportUrl ?? this.soilTestReportUrl,
+      structuralIntegrityReportUrl: structuralIntegrityReportUrl ?? this.structuralIntegrityReportUrl,
     );
   }
 
+  static String formatPrice(double price) {
+    if (price >= 1000000) return '₦${(price / 1000000).toStringAsFixed(1)}M';
+    if (price >= 1000) return '₦${(price / 1000).toStringAsFixed(1)}k';
+    return '₦${price.toStringAsFixed(0)}';
+  }
+
   factory Property.fromMap(Map<String, dynamic> map) {
+    final price = (map['price'] as num).toDouble();
     return Property(
       id: map['id'],
       title: map['title'],
       locationName: map['location_name'],
-      price: (map['price'] as num).toDouble(),
+      price: price,
       priceTerm: map['price_term'],
-      formattedPrice: map['formatted_price'] ?? '',
+      formattedPrice: map['formatted_price'] ?? formatPrice(price),
       location: LatLng(
         (map['latitude'] as num).toDouble(),
         (map['longitude'] as num).toDouble(),
@@ -326,6 +433,19 @@ class Property {
       electricitySupplyHours: (map['electricity_supply_hours'] as num?)?.toDouble() ?? 0.0,
       hasRunningWater: map['has_running_water'] ?? false,
       proximityToHospitalKm: (map['proximity_to_hospital_km'] as num?)?.toDouble() ?? 0.0,
+      yearBuilt: map['year_built'],
+      totalSquareFootage: (map['total_square_footage'] as num?)?.toDouble(),
+      floodingHistory: map['flooding_history'] ?? false,
+      foundationType: map['foundation_type'],
+      hasCertificateOfOccupancy: map['has_certificate_of_occupancy'] ?? false,
+      hasGovernorsConsent: map['has_governors_consent'] ?? false,
+      hasSurveyPlan: map['has_survey_plan'] ?? false,
+      hasDeedOfAssignment: map['has_deed_of_assignment'] ?? false,
+      hasBuildingPlanApproval: map['has_building_plan_approval'] ?? false,
+      hasSoilTestReport: map['has_soil_test_report'] ?? false,
+      hasStructuralIntegrityReport: map['has_structural_integrity_report'] ?? false,
+      dueDiligenceNotes: map['due_diligence_notes'],
+      hasLawyerVerifiedTerms: map['has_lawyer_verified_terms'] ?? false,
       videoUrl: map['video_url'],
       panoramaUrl: map['panorama_url'],
       viewsCount: map['views_count'] ?? 0,
@@ -337,6 +457,20 @@ class Property {
       appliesAgencyFee: map['applies_agency_fee'] ?? true,
       appliesLegalFee: map['applies_legal_fee'] ?? true,
       appliesServiceFee: map['applies_service_fee'] ?? true,
+      virtualTour: map['virtual_tour_data'] != null ? VirtualTour.fromMap(map['virtual_tour_data']) : null,
+      geoFencePoints: (map['geo_fence_points'] as List<dynamic>?)?.map((e) {
+        final pointMap = e as Map<String, dynamic>;
+        return LatLng((pointMap['lat'] as num).toDouble(), (pointMap['lng'] as num).toDouble());
+      }).toList(),
+      listerId: map['lister_id'],
+      isPremium: map['is_premium'] ?? false,
+      coOfOUrl: map['co_of_o_url'],
+      governorsConsentUrl: map['governors_consent_url'],
+      surveyPlanUrl: map['survey_plan_url'],
+      deedOfAssignmentUrl: map['deed_of_assignment_url'],
+      buildingPlanApprovalUrl: map['building_plan_approval_url'],
+      soilTestReportUrl: map['soil_test_report_url'],
+      structuralIntegrityReportUrl: map['structural_integrity_report_url'],
     );
   }
 
@@ -347,7 +481,7 @@ class Property {
       'location_name': locationName,
       'price': price,
       'price_term': priceTerm,
-      'formatted_price': formattedPrice,
+      // Removed 'formatted_price' to fix Supabase schema mismatch
       'latitude': location.latitude,
       'longitude': location.longitude,
       'type': type.name,
@@ -372,6 +506,19 @@ class Property {
       'electricity_supply_hours': electricitySupplyHours,
       'has_running_water': hasRunningWater,
       'proximity_to_hospital_km': proximityToHospitalKm,
+      'year_built': yearBuilt,
+      'total_square_footage': totalSquareFootage,
+      'flooding_history': floodingHistory,
+      'foundation_type': foundationType,
+      'has_certificate_of_occupancy': hasCertificateOfOccupancy,
+      'has_governors_consent': hasGovernorsConsent,
+      'has_survey_plan': hasSurveyPlan,
+      'has_deed_of_assignment': hasDeedOfAssignment,
+      'has_building_plan_approval': hasBuildingPlanApproval,
+      'has_soil_test_report': hasSoilTestReport,
+      'has_structural_integrity_report': hasStructuralIntegrityReport,
+      'due_diligence_notes': dueDiligenceNotes,
+      'has_lawyer_verified_terms': hasLawyerVerifiedTerms,
       'video_url': videoUrl,
       'panorama_url': panoramaUrl,
       'views_count': viewsCount,
@@ -383,6 +530,17 @@ class Property {
       'applies_agency_fee': appliesAgencyFee,
       'applies_legal_fee': appliesLegalFee,
       'applies_service_fee': appliesServiceFee,
+      'virtual_tour_data': virtualTour?.toMap(),
+      'geo_fence_points': geoFencePoints?.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
+      'lister_id': listerId,
+      'is_premium': isPremium,
+      'co_of_o_url': coOfOUrl,
+      'governors_consent_url': governorsConsentUrl,
+      'survey_plan_url': surveyPlanUrl,
+      'deed_of_assignment_url': deedOfAssignmentUrl,
+      'building_plan_approval_url': buildingPlanApprovalUrl,
+      'soil_test_report_url': soilTestReportUrl,
+      'structural_integrity_report_url': structuralIntegrityReportUrl,
     };
   }
 }

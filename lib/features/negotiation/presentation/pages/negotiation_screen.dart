@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:swiftspace/features/negotiation/domain/entities/negotiation.dart';
 import 'package:swiftspace/features/negotiation/presentation/state/negotiation_provider.dart';
-import 'package:swiftspace/features/payment/presentation/pages/escrow_payment_screen.dart';
 import 'package:intl/intl.dart';
 
 class NegotiationScreen extends StatefulWidget {
@@ -524,25 +523,14 @@ class _NegotiationScreenState extends State<NegotiationScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                    Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EscrowPaymentScreen(
-                            propertyTitle: session.property.title,
-                            location: session.property.locationName,
-                            propertyImage: session.property.imageUrl,
-                            amount: agreedPrice,
-                            dealType: session.property.priceTerm != 'buy' ? 'Rental Agreement' : 'Purchase',
-                          ),
-                        ),
-                      );
+                    Navigator.pop(context); // Go back to Management Hub
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Proceed to Escrow →'),
+                child: const Text('Back to Management Hub →'),
               ),
             ),
           ],

@@ -1,0 +1,14 @@
+{
+  "query": "who listed this property",
+  "property": {
+    "title": "Premium House",
+    "price": 5000000,
+    "price_term": "yr",
+    "location_name": "Abuja",
+    "type": "House",
+    "amenities": ["Pool"],
+    "description": "Lovely house",
+    "lister_name": "John Agent",
+    "agent_phone": "08012345678"
+  }
+}

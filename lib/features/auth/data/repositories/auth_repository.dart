@@ -1,13 +1,30 @@
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/models/user_profile.dart';
 import '../../../../core/error/app_exception.dart';
+import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
+
+  // Native Google Sign-In helper
+  bool _googleSignInInitialized = false;
+  final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    
+    await _googleSignIn.initialize(
+      clientId: dotenv.get('GOOGLE_WEB_CLIENT_ID'),
+      serverClientId: dotenv.get('GOOGLE_WEB_CLIENT_ID'), // serverClientId must be the Web Client ID on Android
+    );
+    _googleSignInInitialized = true;
+  }
 
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
@@ -38,23 +55,39 @@ class AuthRepository {
     }
   }
 
-  /// Signs in with Google via Supabase OAuth on all platforms.
+  /// Signs in with Google via Native SDK on Mobile and OAuth on Web.
   /// - Web: redirects back to the current page origin.
-  /// - Mobile (Android/iOS): redirects via deep link back into the app.
-  /// No Firebase or google-services.json required.
+  /// - Mobile (Android/iOS): Uses native system dialog and ID token.
   Future<void> signInWithGoogle() async {
     try {
-      final redirectTo = kIsWeb
-          ? Uri.base.origin
-          : 'com.swiftspace.app://login-callback';
+      if (kIsWeb) {
+        await _client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: kIsWeb ? Uri.base.toString().split('?').first : null,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        );
+        return;
+      }
 
-      await _client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: redirectTo,
-        authScreenLaunchMode: LaunchMode.externalApplication,
+      // Native Google Sign-In for Mobile (v7.0.0+ API)
+      await _ensureGoogleSignInInitialized();
+      final google_sign_in.GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      if (googleUser == null) return; // User cancelled
+
+      final google_sign_in.GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw AppException(
+          'Google Sign-In failed: No ID Token received. Check SHA-1 registration and Web Client ID configuration.',
+          code: 'no_id_token',
+        );
+      }
+
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
       );
-      // OAuth opens the browser; the session is restored via authStateChanges
-      // once the user completes sign-in and is redirected back.
     } catch (e) {
       if (e is AppException) rethrow;
       throw AppException.fromSupabase(e);
@@ -71,9 +104,15 @@ class AuthRepository {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10));
       return UserProfile.fromJson(data);
     } catch (e) {
+      debugPrint('AuthRepository: getUserProfile error: $e');
+      // If it's a handshake/network error, we might want to know
+      if (e.toString().toLowerCase().contains('handshake')) {
+         debugPrint('AuthRepository: Handshake failure detected during profile load.');
+      }
       // We don't throw here to allow null profiles for new users
       return null;
     }
@@ -118,7 +157,11 @@ class AuthRepository {
         'role': role.name,
         if (isVerified != null) 'is_verified': isVerified,
       };
-      await _client.from('profiles').update(updates).eq('id', userId);
+      await _client
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .timeout(const Duration(seconds: 10));
     } catch (e) {
       throw AppException.fromSupabase(e);
     }
@@ -161,24 +204,34 @@ class AuthRepository {
     String? governmentIdUrl,
     String? brokerLicenseUrl,
     bool? termsAccepted,
+    String? phoneNumber,
+    String? about,
+    String? officeAddress,
+    List<String>? specialties,
   }) async {
     try {
       final updates = {
         if (fullName != null) 'full_name': fullName,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
         if (yearsExperience != null) 'years_experience': yearsExperience,
-        'government_id_url': governmentIdUrl, // Allow setting to null on rejection
-        'broker_license_url': brokerLicenseUrl,
+        if (governmentIdUrl != null) 'government_id_url': governmentIdUrl,
+        if (brokerLicenseUrl != null) 'broker_license_url': brokerLicenseUrl,
         if (termsAccepted != null) 'terms_accepted': termsAccepted,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (about != null) 'about': about,
+        if (officeAddress != null) 'office_address': officeAddress,
+        if (specialties != null) 'specialties': specialties,
       };
-      
+
       // Remove keys with undefined values if they weren't explicitly passed
-      // but were mentioned in the signature.
-      // Actually, for URLs we want to allow null to clear them.
       if (yearsExperience == null) updates.remove('years_experience');
       if (fullName == null) updates.remove('full_name');
       if (avatarUrl == null) updates.remove('avatar_url');
       if (termsAccepted == null) updates.remove('terms_accepted');
+      if (phoneNumber == null) updates.remove('phone_number');
+      if (about == null) updates.remove('about');
+      if (officeAddress == null) updates.remove('office_address');
+      if (specialties == null) updates.remove('specialties');
 
       await _client.from('profiles').update(updates).eq('id', userId);
     } catch (e) {

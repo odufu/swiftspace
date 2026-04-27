@@ -7,6 +7,14 @@ class ChatProvider with ChangeNotifier {
   List<ChatRoom> get rooms => _rooms.values.toList()
     ..sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
+  int get totalUnreadCount {
+    int count = 0;
+    for (var room in _rooms.values) {
+      count += room.unreadCount;
+    }
+    return count;
+  }
+
   ChatRoom? getRoomByProperty(String propertyId) {
     try {
       return _rooms.values.firstWhere(
@@ -26,16 +34,12 @@ class ChatProvider with ChangeNotifier {
       senderId: senderId,
       text: text,
       timestamp: DateTime.now(),
+      isRead: senderId == 'user', // Messages sent by user are "read" by user's perspective
     );
 
     final updatedMessages = List<ChatMessage>.from(room.messages)..add(newMessage);
     
-    _rooms[roomId] = ChatRoom(
-      id: room.id,
-      propertyId: room.propertyId,
-      propertyTitle: room.propertyTitle,
-      propertyImageUrl: room.propertyImageUrl,
-      agentName: room.agentName,
+    _rooms[roomId] = room.copyWith(
       messages: updatedMessages,
       lastMessage: text,
       lastMessageTime: DateTime.now(),
@@ -47,6 +51,21 @@ class ChatProvider with ChangeNotifier {
     if (senderId == 'user') {
       _mockAutoReply(roomId);
     }
+  }
+
+  void markRoomAsRead(String roomId) {
+    if (!_rooms.containsKey(roomId)) return;
+    
+    final room = _rooms[roomId]!;
+    final updatedMessages = room.messages.map((m) {
+      if (m.senderId != 'user' && !m.isRead) {
+        return m.copyWith(isRead: true);
+      }
+      return m;
+    }).toList();
+
+    _rooms[roomId] = room.copyWith(messages: updatedMessages);
+    notifyListeners();
   }
 
   void createRoom(String propertyId, String title, String imageUrl, String agentName) {
@@ -71,7 +90,24 @@ class ChatProvider with ChangeNotifier {
   void _mockAutoReply(String roomId) {
     Future.delayed(const Duration(seconds: 2), () {
       if (_rooms.containsKey(roomId)) {
-        sendMessage(roomId, "Hello! Thanks for your interest. How can I help you with this property?", "agent");
+        final room = _rooms[roomId]!;
+        final newMessage = ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          senderId: 'agent',
+          text: "Hello! Thanks for your interest. How can I help you with this property?",
+          timestamp: DateTime.now(),
+          isRead: false,
+        );
+
+        final updatedMessages = List<ChatMessage>.from(room.messages)..add(newMessage);
+        
+        _rooms[roomId] = room.copyWith(
+          messages: updatedMessages,
+          lastMessage: newMessage.text,
+          lastMessageTime: DateTime.now(),
+        );
+
+        notifyListeners();
       }
     });
   }

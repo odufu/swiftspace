@@ -25,9 +25,8 @@ class InspectionBooking {
   final String? agentNotes;
   final String? clientNotes;
   final String? postponementReason;
-  final DateTime? originalDateTime;
-  /// ID of the linked EscrowTransaction for the inspection commitment fee
-  final String? escrowTransactionId;
+  DateTime? get originalDateTime => _originalDateTime;
+  final DateTime? _originalDateTime;
 
   InspectionBooking({
     required this.id,
@@ -41,9 +40,9 @@ class InspectionBooking {
     this.agentNotes,
     this.clientNotes,
     this.postponementReason,
-    this.originalDateTime,
-    this.escrowTransactionId,
-  }) : createdAt = createdAt ?? DateTime.now();
+    DateTime? originalDateTime,
+  }) : createdAt = createdAt ?? DateTime.now(),
+       _originalDateTime = originalDateTime;
   
   String get formattedDate => '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   String get formattedTime => '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
@@ -58,7 +57,6 @@ class InspectionBooking {
     String? clientNotes,
     String? postponementReason,
     DateTime? originalDateTime,
-    String? escrowTransactionId,
   }) {
     return InspectionBooking(
       id: id,
@@ -73,7 +71,6 @@ class InspectionBooking {
       clientNotes: clientNotes ?? this.clientNotes,
       postponementReason: postponementReason ?? this.postponementReason,
       originalDateTime: originalDateTime ?? this.originalDateTime,
-      escrowTransactionId: escrowTransactionId ?? this.escrowTransactionId,
     );
   }
 }

@@ -14,7 +14,8 @@ import 'package:swiftspace/features/auth/presentation/pages/no_internet_screen.d
 import 'package:swiftspace/core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:swiftspace/core/constants/app_constants.dart';
-
+import 'package:swiftspace/main.dart';
+import 'package:swiftspace/features/agent/presentation/pages/professional_dashboard_screen.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -75,13 +76,8 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // 2. Try to ensure Supabase is initialized if it failed during main()
-    try {
-      if (!Supabase.instance.client.auth.currentSession.toString().contains('SupabaseClient')) {
-         // This is a bit hacky but we want to ensure we have a client if initialization failed
-         await SupabaseService.initialize();
-      }
-    } catch (_) {}
+    // 2. We skip Supabase initialization here as it's now handled by RootApp in main.dart
+
 
     // Wait for the animation + artificial delay
     await Future.delayed(const Duration(milliseconds: 2000));
@@ -104,9 +100,14 @@ class _SplashScreenState extends State<SplashScreen>
           Provider.of<AdminProvider>(context, listen: false).fetchAllData();
         }
 
-        final screen = isAdmin
-            ? const OperationsDashboard()
-            : const RoleSelectionScreen();
+        Widget screen;
+        if (isAdmin) {
+          screen = const OperationsDashboard();
+        } else if (role == UserRole.user) {
+          screen = const MainLayout();
+        } else {
+          screen = const ProfessionalDashboardScreen();
+        }
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
@@ -119,10 +120,11 @@ class _SplashScreenState extends State<SplashScreen>
         );
       }
     } else {
+      // Guest Browsing: Navigate to MainLayout instead of OnboardingScreen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (_, _, _) => const OnboardingScreen(),
+          pageBuilder: (_, _, _) => const MainLayout(),
           transitionsBuilder: (_, animation, _, child) {
             return FadeTransition(opacity: animation, child: child);
           },

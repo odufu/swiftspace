@@ -32,15 +32,110 @@
   <title>swiftspace</title>
   <link rel="manifest" href="manifest.json">
 </head>
+  <style>
+    body {
+      background: #0F5A3F;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #loading-screen {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      transition: opacity 0.4s ease-out;
+    }
+    .splash-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.8s ease-out;
+    }
+    .logo-box {
+      width: 100px;
+      height: 100px;
+      background: white;
+      border-radius: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      margin-bottom: 24px;
+    }
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      color: #0F5A3F;
+    }
+    .app-title {
+      color: white;
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+</head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading-screen">
+    <div class="splash-container">
+      <div class="logo-box">
+        <span class="logo-text">S</span>
+      </div>
+      <div class="app-title">SwiftSpace</div>
+    </div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('load', function() {
+      // Monitor Flutter Initialization
+      var loadingScreen = document.getElementById('loading-screen');
+      
+      // We check for the app-container or wait for a specific duration
+      // But the best way is to use a callback if we customized flutter_bootstrap
+      // For now, we'll watch if the flutter-view appears or use a safety timeout
+      
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.addedNodes.length > 0) {
+            for (var i = 0; i < mutation.addedNodes.length; i++) {
+              if (mutation.addedNodes[i].tagName === 'FLUTTER-VIEW') {
+                setTimeout(function() {
+                  loadingScreen.classList.add('fade-out');
+                  setTimeout(() => loadingScreen.remove(), 500);
+                }, 200);
+                observer.disconnect();
+              }
+            }
+          }
+        });
+      });
+      
+      observer.observe(document.body, { childList: true });
+
+      // Fallback: If it takes too long but engine is ready
+      setTimeout(function() {
+        if (!loadingScreen.classList.contains('fade-out')) {
+           loadingScreen.classList.add('fade-out');
+           setTimeout(() => loadingScreen.remove(), 500);
+        }
+      }, 10000); // 10s safety
+    });
+  </script>
 </body>
 </html>
