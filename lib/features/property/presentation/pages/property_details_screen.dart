@@ -20,6 +20,8 @@ import 'package:swiftspace/features/booking/presentation/pages/property_manageme
 import 'package:swiftspace/features/booking/domain/entities/commitment.dart';
 import 'package:swiftspace/features/agent/presentation/pages/professional_profile_screen.dart';
 
+import 'package:swiftspace/features/auth/presentation/state/auth_provider.dart';
+import 'package:swiftspace/shared/widgets/guest_auth_placeholder.dart';
 import 'package:swiftspace/features/property/presentation/widgets/property_feature_widgets.dart';
 
 class PropertyDetailsScreen extends StatefulWidget {
@@ -99,8 +101,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   bool _isAsking = false;
 
   void _showAiAssistant() {
-    final TextEditingController _chatController = TextEditingController();
-    final ScrollController _scrollController = ScrollController();
+    final TextEditingController chatController = TextEditingController();
+    final ScrollController scrollController = ScrollController();
 
     showModalBottomSheet(
       context: context,
@@ -108,21 +110,21 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          Future<void> _sendMessage() async {
-            final query = _chatController.text.trim();
+          Future<void> sendMessage() async {
+            final query = chatController.text.trim();
             if (query.isEmpty) return;
 
             setModalState(() {
               _chatHistory.add({'role': 'user', 'text': query});
               _isAsking = true;
-              _chatController.clear();
+              chatController.clear();
             });
 
             // Scroll to bottom
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_scrollController.hasClients) {
-                _scrollController.animateTo(
-                  _scrollController.position.maxScrollExtent,
+              if (scrollController.hasClients) {
+                scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOut,
                 );
@@ -160,9 +162,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             } finally {
               setModalState(() => _isAsking = false);
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_scrollController.hasClients) {
-                  _scrollController.animateTo(
-                    _scrollController.position.maxScrollExtent,
+                if (scrollController.hasClients) {
+                  scrollController.animateTo(
+                    scrollController.position.maxScrollExtent,
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOut,
                   );
@@ -198,7 +200,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -242,7 +244,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 // Chat History
                 Expanded(
                   child: ListView.builder(
-                    controller: _scrollController,
+                    controller: scrollController,
                     padding: const EdgeInsets.all(24),
                     itemCount: _chatHistory.length + (_isAsking ? 1 : 0),
                     itemBuilder: (context, index) {
@@ -266,7 +268,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           decoration: BoxDecoration(
                             color: isUser
                                 ? Colors.blue
-                                : Colors.white.withOpacity(0.05),
+                                : Colors.white.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(20).copyWith(
                               bottomRight: isUser
                                   ? const Radius.circular(4)
@@ -305,14 +307,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     children: [
                       Expanded(
                         child: TextField(
-                          controller: _chatController,
+                          controller: chatController,
                           autofocus: true,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'e.g. Is this area prone to flooding?',
                             hintStyle: const TextStyle(color: Colors.white30),
                             border: InputBorder.none,
-                            fillColor: Colors.white.withOpacity(0.05),
+                            fillColor: Colors.white.withValues(alpha: 0.05),
                             filled: true,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -330,12 +332,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               ),
                             ),
                           ),
-                          onSubmitted: (_) => _sendMessage(),
+                          onSubmitted: (_) => sendMessage(),
                         ),
                       ),
                       const SizedBox(width: 12),
                       GestureDetector(
-                        onTap: _sendMessage,
+                        onTap: sendMessage,
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: const BoxDecoration(
@@ -367,7 +369,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -398,6 +400,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final p = widget.property;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -405,7 +408,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              _buildImmersiveHeader(p, theme),
+              _buildImmersiveHeader(p, theme, auth),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -434,7 +437,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       if (p.isPremium && !_isUnlocked)
                         _buildLockedPremiumSection()
                       else
-                        _buildUnlockedFeatures(p),
+                        _buildUnlockedFeatures(p, auth),
                       const SizedBox(height: 120), // Padding for bottom bar
                     ],
                   ),
@@ -448,14 +451,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: _buildAiActionBar(theme),
+            child: _buildAiActionBar(theme, auth),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImmersiveHeader(Property p, ThemeData theme) {
+  Widget _buildImmersiveHeader(Property p, ThemeData theme, AuthProvider auth) {
     return SliverAppBar(
       expandedHeight: 400,
       pinned: true,
@@ -475,7 +478,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               final isFav = favs.isFavorite(p.id);
               return _buildGlassIcon(
                 isFav ? Icons.favorite : Icons.favorite_border,
-                () => favs.toggleFavorite(p),
+                () {
+                  if (!auth.isAuthenticated) {
+                    LoginSheet.show(context);
+                    return;
+                  }
+                  favs.toggleFavorite(p);
+                },
                 color: isFav ? Colors.redAccent : Colors.white,
               );
             },
@@ -842,11 +851,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildUnlockedFeatures(Property p) {
+  Widget _buildUnlockedFeatures(Property p, AuthProvider auth) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDocumentsSection(p),
+        _buildDocumentsSection(p, auth),
         const SizedBox(height: 32),
         _buildDueDiligenceSection(p),
         const SizedBox(height: 32),
@@ -857,6 +866,10 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         const SizedBox(height: 16),
         InkWell(
           onTap: () {
+            if (!auth.isAuthenticated) {
+              LoginSheet.show(context);
+              return;
+            }
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -930,7 +943,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(LucideIcons.phone, color: Colors.green, size: 20),
@@ -943,7 +956,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildDocumentsSection(Property p) {
+  Widget _buildDocumentsSection(Property p, AuthProvider auth) {
     final docs = [
       if (p.hasCertificateOfOccupancy)
         ('Certificate of Occupancy', p.coOfOUrl, LucideIcons.fileText),
@@ -1003,7 +1016,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
@@ -1030,7 +1043,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           fontStyle: FontStyle.italic,
                         ),
                       ),
-                onTap: () => _showDocumentViewer(doc.$1, doc.$2),
+                onTap: () {
+                  if (!auth.isAuthenticated) {
+                    LoginSheet.show(context);
+                    return;
+                  }
+                  _showDocumentViewer(doc.$1, doc.$2);
+                },
               );
             },
           ),
@@ -1079,7 +1098,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.amber.withOpacity(0.1),
+            color: Colors.amber.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Icon(LucideIcons.alertCircle, color: Colors.amber, size: 64),
@@ -1100,7 +1119,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
             'This document has been verified but is not yet available for public download. Please contact the agent to request a copy.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 16,
               height: 1.5,
             ),
@@ -1236,9 +1255,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.05),
+              color: Colors.green.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.green.withOpacity(0.1)),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1279,7 +1298,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
@@ -1301,7 +1320,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  Widget _buildAiActionBar(ThemeData theme) {
+  Widget _buildAiActionBar(ThemeData theme, AuthProvider auth) {
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -1319,7 +1338,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Expanded(
                 flex: 1,
                 child: GestureDetector(
-                  onTap: _showAiAssistant,
+                  onTap: () {
+                    if (!auth.isAuthenticated) {
+                      LoginSheet.show(context);
+                      return;
+                    }
+                    _showAiAssistant();
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
@@ -1357,7 +1382,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
               Expanded(
                 flex: 2,
                 child: GestureDetector(
-                  onTap: () => _bookInspection(context),
+                  onTap: () {
+                    if (!auth.isAuthenticated) {
+                      LoginSheet.show(context);
+                      return;
+                    }
+                    _bookInspection(context);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(

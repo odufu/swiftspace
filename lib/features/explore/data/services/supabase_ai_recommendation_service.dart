@@ -68,9 +68,16 @@ class SupabaseAiRecommendationService implements IAiRecommendationService {
     }
 
     final propertiesList = data['properties'] as List<dynamic>? ?? [];
-    final contextSummary =
-        data['context_summary'] as String? ??
-        "Found ${propertiesList.length} properties that match your criteria.";
+    final filters = data['filters'] as Map<String, dynamic>?;
+    
+    String? contextSummary = data['context_summary'] as String?;
+    
+    if (contextSummary == null || contextSummary.isEmpty) {
+      final type = filters?['property_type']?.toString().toLowerCase() ?? 'properties';
+      final loc = filters?['location']?.toString() ?? 'Nigeria';
+      contextSummary = "Found ${propertiesList.length} $type in $loc for you.";
+    }
+
 
     log(
       '[AI] Received ${propertiesList.length} properties from edge function. '

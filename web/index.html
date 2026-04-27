@@ -34,7 +34,7 @@
 </head>
   <style>
     body {
-      background: radial-gradient(circle at center, #1a1c1e 0%, #0c0d0e 100%);
+      background: #0F5A3F;
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -44,98 +44,59 @@
       width: 100%;
       height: 100%;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 99999;
-      transition: opacity 0.5s ease-out;
+      transition: opacity 0.4s ease-out;
     }
-    .glass-container {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 32px;
-      padding: 60px;
+    .splash-container {
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.8s ease-out;
     }
-    .logo-glow {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-      border-radius: 20px;
+    .logo-box {
+      width: 100px;
+      height: 100px;
+      background: white;
+      border-radius: 24px;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 48px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      margin-bottom: 24px;
+    }
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 56px;
       font-weight: 800;
+      color: #0F5A3F;
+    }
+    .app-title {
       color: white;
-      margin-bottom: 30px;
-      box-shadow: 0 0 30px rgba(58, 123, 213, 0.4);
-      animation: pulse 2s infinite ease-in-out;
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
     }
-    .app-name {
-      color: white;
-      font-family: 'Outfit', 'Inter', sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      margin-bottom: 8px;
-    }
-    .app-subtitle {
-      color: rgba(255, 255, 255, 0.5);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      letter-spacing: 1px;
-      margin-bottom: 40px;
-    }
-    .loader-bar {
-      width: 180px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      position: relative;
-      overflow: hidden;
-    }
-    .loader-progress {
-      width: 30%;
-      height: 100%;
-      background: #3a7bd5;
-      border-radius: 2px;
-      position: absolute;
-      animation: progress 1.5s infinite ease-in-out;
-      box-shadow: 0 0 10px #3a7bd5;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(58, 123, 213, 0.4); }
-      50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(58, 123, 213, 0.6); }
-    }
-    @keyframes progress {
-      0% { left: -30%; width: 10%; }
-      50% { left: 20%; width: 60%; }
-      100% { left: 100%; width: 10%; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
     }
     .fade-out {
       opacity: 0;
       pointer-events: none;
     }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="loading-screen">
-    <div class="glass-container">
-      <div class="logo-glow">S</div>
-      <div class="app-name">SWIFT SPACE</div>
-      <div class="app-subtitle">Initializing Secure Space</div>
-      <div class="loader-bar">
-        <div class="loader-progress"></div>
+    <div class="splash-container">
+      <div class="logo-box">
+        <span class="logo-text">S</span>
       </div>
+      <div class="app-title">SwiftSpace</div>
     </div>
   </div>
 

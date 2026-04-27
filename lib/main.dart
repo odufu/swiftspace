@@ -33,52 +33,103 @@ import 'package:swiftspace/features/auth/data/repositories/auth_repository.dart'
 
 import 'dart:ui';
 
-void main() async {
+import 'shared/widgets/guest_auth_placeholder.dart';
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Register DI immediately (it's sync and fast)
+  initGlobalDI();
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
-
-  // Initialize Supabase with basic error handling
-  try {
-    // Add a timeout to prevent absolute lock on web environments
-    await SupabaseService.initialize().timeout(const Duration(seconds: 5));
-  } catch (e) {
-    debugPrint('Supabase Initialization Error/Timeout: $e');
-    // We continue so the app can at least show the NoInternet screen if needed
-  }
-
-  // Initialize Dependency Injection
-  await initGlobalDI();
-
-  // Configure GoogleFonts to use local assets and not fetch from the internet.
-  // This avoids CORS and connectivity issues on Flutter Web and ensures visual consistency.
+  // Configure GoogleFonts to use local assets
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  // Global error handler for Flutter frame-work errors
-  FlutterError.onError = (details) {
-    if (details.exception.toString().contains('SocketException') ||
-        details.exception.toString().contains('google_fonts')) {
-      debugPrint('Network/Font warning (Handled): ${details.exception}');
-      return;
+  runApp(const RootApp());
+}
+
+class RootApp extends StatefulWidget {
+  const RootApp({super.key});
+
+  @override
+  State<RootApp> createState() => _RootAppState();
+}
+
+class _RootAppState extends State<RootApp> {
+  bool _isInitialized = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      // 1. Load env
+      await dotenv.load(fileName: ".env");
+
+      // 2. Initialize Supabase
+      await SupabaseService.initialize().timeout(const Duration(seconds: 10));
+
+      // 3. Initialize Audio
+      await sl<AudioManager>().init();
+
+      if (mounted) {
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      debugPrint('Initialization Error: $e');
+      if (mounted) {
+        setState(() => _error = e.toString());
+      }
     }
-    FlutterError.presentError(details);
-  };
+  }
 
-  // Global error handler for asynchronous errors (not caught by Flutter)
-  PlatformDispatcher.instance.onError = (error, stack) {
-    if (error.toString().contains('SocketException') ||
-        error.toString().contains('google_fonts')) {
-      debugPrint('Async Network warning (Handled): $error');
-      return true;
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: AppColors.primaryLight,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(LucideIcons.alertTriangle, color: Colors.white, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to connect to servers.\nPlease check your connection.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => setState(() {
+                      _error = null;
+                      _initialize();
+                    }),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
-    return false;
-  };
 
-  sl<AudioManager>().init();
+    if (!_isInitialized) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: InitializingSplash(),
+      );
+    }
 
-  runApp(
-    MultiProvider(
+    return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
@@ -113,9 +164,56 @@ void main() async {
         ),
       ],
       child: const SwiftSpaceApp(),
-    ),
-  );
+    );
+  }
 }
+
+class InitializingSplash extends StatelessWidget {
+  const InitializingSplash({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.primaryLight,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Center(
+                child: Text(
+                  'S',
+                  style: TextStyle(
+                    fontSize: 56,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryLight,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              AppConstants.appName,
+              style: GoogleFonts.outfit(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class SwiftSpaceApp extends StatelessWidget {
   const SwiftSpaceApp({super.key});
@@ -165,19 +263,51 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  final List<Widget> _screens = [
-    const MainExploreTab(),
-    const SavedScreen(),
-    const PropertyHubScreen(),
-    const VaultScreen(),
-    const UserProfileScreen(),
-  ];
+  List<Widget> _buildScreens(bool isAuthenticated) {
+    return [
+      const MainExploreTab(),
+      isAuthenticated
+          ? const SavedScreen()
+          : const GuestAuthPlaceholder(
+              title: 'Your Saved Homes',
+              subtitle:
+                  'Sign in to save properties and keep track of your favorite listings.',
+              icon: LucideIcons.heart,
+            ),
+      isAuthenticated
+          ? const PropertyHubScreen()
+          : const GuestAuthPlaceholder(
+              title: 'Agent Connect',
+              subtitle:
+                  'Log in to chat with agents, book inspections, and manage your deals.',
+              icon: LucideIcons.messageSquare,
+            ),
+      isAuthenticated
+          ? const VaultScreen()
+          : const GuestAuthPlaceholder(
+              title: 'Secure Vault',
+              subtitle:
+                  'Access your documents and financial records securely after signing in.',
+              icon: LucideIcons.shieldCheck,
+            ),
+      isAuthenticated
+          ? const UserProfileScreen()
+          : const GuestAuthPlaceholder(
+              title: 'Join SwiftSpace',
+              subtitle:
+                  'Create a profile to manage your preferences and start your property journey.',
+              icon: LucideIcons.user,
+            ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final prefs = Provider.of<UserPreferencesProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
     final isMobile = Responsive.isMobile(context);
+    final screens = _buildScreens(auth.isAuthenticated);
 
     return PopScope(
       canPop: prefs.currentTabIndex == 0,
@@ -187,48 +317,58 @@ class _MainLayoutState extends State<MainLayout> {
         }
       },
       child: Scaffold(
-        appBar: prefs.currentTabIndex == 0 
-          ? null 
-          : AppBar(
-              title: Text(
-            AppConstants.appName,
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w900,
-              fontSize: 24,
-              letterSpacing: -1,
-              color: colorScheme.primary,
-            ),
-          ),
-          backgroundColor: colorScheme.surface,
-          elevation: 0,
-          actions: [
-            Consumer2<ChatProvider, NotificationProvider>(
-              builder: (context, chat, note, child) {
-                return Row(
-                  children: [
-                    BadgeIcon(
-                      icon: LucideIcons.messageSquare,
-                      count: chat.totalUnreadCount,
-                      onPressed: () {
-                        // Navigate to chat/hub or show popup
-                        prefs.setTabIndex(2); // Goes to Property Hub (Index 2)
-                      },
-                    ),
-                    BadgeIcon(
-                      icon: LucideIcons.bell,
-                      count: note.unreadCount,
-                      onPressed: () {
-                        // Show notification sheet
-                        NotificationSheet.show(context);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+        appBar: prefs.currentTabIndex == 0
+            ? null
+            : AppBar(
+                title: Text(
+                  AppConstants.appName,
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                    letterSpacing: -1,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                backgroundColor: colorScheme.surface,
+                elevation: 0,
+                actions: [
+                  Consumer2<ChatProvider, NotificationProvider>(
+                    builder: (context, chat, note, child) {
+                      return Row(
+                        children: [
+                          BadgeIcon(
+                            icon: LucideIcons.messageSquare,
+                            count: chat.totalUnreadCount,
+                            onPressed: () {
+                              if (!auth.isAuthenticated) {
+                                LoginSheet.show(context);
+                                return;
+                              }
+                              // Navigate to chat/hub or show popup
+                              prefs.setTabIndex(
+                                2,
+                              ); // Goes to Property Hub (Index 2)
+                            },
+                          ),
+                          BadgeIcon(
+                            icon: LucideIcons.bell,
+                            count: note.unreadCount,
+                            onPressed: () {
+                              if (!auth.isAuthenticated) {
+                                LoginSheet.show(context);
+                                return;
+                              }
+                              // Show notification sheet
+                              NotificationSheet.show(context);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
         body: Row(
           children: [
             if (!isMobile)
@@ -276,7 +416,7 @@ class _MainLayoutState extends State<MainLayout> {
             Expanded(
               child: IndexedStack(
                 index: prefs.currentTabIndex,
-                children: _screens,
+                children: screens,
               ),
             ),
           ],

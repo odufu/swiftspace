@@ -76,24 +76,8 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // 2. Try to ensure Supabase is initialized if it failed during main()
-    try {
-      // Use a safer way to check if Supabase is initialized
-      bool isInitialized = false;
-      try {
-        Supabase.instance.client;
-        isInitialized = true;
-      } catch (_) {
-        isInitialized = false;
-      }
+    // 2. We skip Supabase initialization here as it's now handled by RootApp in main.dart
 
-      if (!isInitialized) {
-         // Attempt initialization with a timeout
-         await SupabaseService.initialize().timeout(const Duration(seconds: 5));
-      }
-    } catch (e) {
-      debugPrint('SplashScreen: Supabase Re-init failed/timed out: $e');
-    }
 
     // Wait for the animation + artificial delay
     await Future.delayed(const Duration(milliseconds: 2000));
@@ -136,10 +120,11 @@ class _SplashScreenState extends State<SplashScreen>
         );
       }
     } else {
+      // Guest Browsing: Navigate to MainLayout instead of OnboardingScreen
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (_, _, _) => const OnboardingScreen(),
+          pageBuilder: (_, _, _) => const MainLayout(),
           transitionsBuilder: (_, animation, _, child) {
             return FadeTransition(opacity: animation, child: child);
           },
